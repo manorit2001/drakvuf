@@ -270,6 +270,9 @@ typedef enum object_manager_object
 
 ////////////////////////////////////////////////////////////////////////////
 
+uint8_t* drakvuf_get_pt_buf(drakvuf_t drakvuf, int cpu_id) NOEXCEPT;
+uint64_t drakvuf_get_pt_offset(drakvuf_t drakvuf, int cpu_id) NOEXCEPT;
+
 vmi_instance_t drakvuf_lock_and_get_vmi(drakvuf_t drakvuf) NOEXCEPT;
 void drakvuf_release_vmi(drakvuf_t drakvuf) NOEXCEPT;
 

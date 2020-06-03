@@ -179,6 +179,9 @@ struct drakvuf
     char* json_wow_path;
     json_object* json_wow;
 
+    uint8_t* pt_buf[10];
+    uint64_t pt_size[10];
+
     xen_interface_t* xen;
     os_interface_t osi;
     uint16_t altp2m_idx, altp2m_idr;

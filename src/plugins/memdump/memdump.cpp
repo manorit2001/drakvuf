@@ -109,11 +109,14 @@
 #include <libvmi/peparse.h>
 #include <assert.h>
 #include <libdrakvuf/json-util.h>
+#include <sstream>
 
 #include "memdump.h"
 #include "private.h"
 
 #define DUMP_NAME_PLACEHOLDER "(not configured)"
+
+int ptbuf_dump_id = 0;
 
 static void save_file_metadata(const drakvuf_trap_info_t* info,
                                const char* file_path,
@@ -500,6 +503,30 @@ static event_response_t terminate_process_hook_cb(drakvuf_t drakvuf, drakvuf_tra
     auto plugin = get_trap_plugin<memdump>(info);
     if (!plugin)
         return VMI_EVENT_RESPONSE_NONE;
+
+    int num_cpus;
+    {
+        vmi_lock_guard vmi(drakvuf);
+        num_cpus = vmi_get_num_vcpus(vmi);
+    }
+
+    for (int i = 0; i < num_cpus; i++) {
+        uint8_t* pt_buf = drakvuf_get_pt_buf(drakvuf, i);
+        uint32_t pt_offset = drakvuf_get_pt_offset(drakvuf, i);
+
+        std::stringstream lol;
+        lol << "/tmp/ptbuf";
+        lol << ptbuf_dump_id;
+        lol << "_vcpu";
+        lol << i;
+        FILE* f = fopen(lol.str().c_str(), "wb");
+        fwrite(pt_buf, 1, pt_offset, f);
+        fclose(f);
+
+        printf("[IPT] Dump done vCPU: %d first two bytes: %02x %02x current offset: %llx\n", i, pt_buf[0], pt_buf[1], (unsigned long long)pt_offset);
+    }
+
+    ptbuf_dump_id++;
 
     dump_from_stack(drakvuf, info, plugin);
     return VMI_EVENT_RESPONSE_NONE;

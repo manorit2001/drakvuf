@@ -299,6 +299,40 @@ void xen_unshare_gfn(xen_interface_t* xen, domid_t domID, unsigned long gfn)
     if (memory) munmap(memory, XC_PAGE_SIZE);
 }
 
+int xen_ptbuf_enable(xen_interface_t* xen, domid_t domID, uint32_t vcpu, uint64_t size)
+{
+    int rc;
+    rc = xc_ptbuf_enable(xen->xc, domID, vcpu, size);
+    printf("xc_ptbuf_enable rc=%d\n", rc);
+    return rc;
+}
+
+int xen_ptbuf_disable(xen_interface_t* xen, domid_t domID, uint32_t vcpu)
+{
+    int rc;
+    rc = xc_ptbuf_disable(xen->xc, domID, vcpu);
+    printf("xc_ptbuf_disable rc=%d\n", rc);
+    return rc;
+}
+
+int xen_ptbuf_map(xen_interface_t* xen, domid_t domID, uint32_t vcpu, uint8_t **buf, uint64_t *size)
+{
+    int rc;
+    rc = xc_ptbuf_map(xen->xc, domID, vcpu, buf, size);
+    printf("xc_ptbuf_map: rc=%d buf=%llx size=%llx\n", rc, (unsigned long long)*buf, (unsigned long long)*size);
+    return rc;
+}
+
+int xen_ptbuf_unmap(xen_interface_t* xen, uint8_t *buf, uint64_t size)
+{
+    return xc_ptbuf_unmap(xen->xc, buf, size);
+}
+
+int xen_ptbuf_get_offset(xen_interface_t* xen, domid_t domID, uint32_t vcpu, uint64_t *offset)
+{
+    return xc_ptbuf_get_offset(xen->xc, domID, vcpu, offset);
+}
+
 void print_sharing_info(xen_interface_t* xen, domid_t domID)
 {
 

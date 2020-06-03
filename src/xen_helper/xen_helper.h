@@ -143,4 +143,10 @@ void xen_force_resume(xen_interface_t* xen, domid_t domID);
 bool xen_enable_altp2m(xen_interface_t* xen, domid_t domID);
 int xen_version(void);
 
+int xen_ptbuf_enable(xen_interface_t* xen, domid_t domID, uint32_t vcpu, uint64_t size);
+int xen_ptbuf_disable(xen_interface_t* xen, domid_t domID, uint32_t vcpu);
+int xen_ptbuf_map(xen_interface_t* xen, domid_t domID, uint32_t vcpu, uint8_t **buf, uint64_t *size);
+int xen_ptbuf_unmap(xen_interface_t* xen, uint8_t *buf, uint64_t size);
+int xen_ptbuf_get_offset(xen_interface_t* xen, domid_t domID, uint32_t vcpu, uint64_t *offset);
+
 #endif

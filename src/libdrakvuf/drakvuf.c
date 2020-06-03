@@ -119,6 +119,15 @@ void drakvuf_close(drakvuf_t drakvuf, const bool pause)
     if (!drakvuf)
         return;
 
+    for (unsigned int i = 0; i < drakvuf->vcpus; i++) {
+        printf("unmap %llx %llx\n", (unsigned long long)drakvuf->pt_buf[i], (unsigned long long)drakvuf->pt_size[i]);
+        xen_ptbuf_unmap(drakvuf->xen, drakvuf->pt_buf[i], drakvuf->pt_size[i]);
+    }
+
+    for (unsigned int i = 0; i < drakvuf->vcpus; i++) {
+        xen_ptbuf_disable(drakvuf->xen, drakvuf->domID, i);
+    }
+
     if (drakvuf->vmi)
         close_vmi(drakvuf);
 
@@ -218,6 +227,15 @@ bool drakvuf_init(drakvuf_t* drakvuf, const char* domain, const char* json_kerne
 
     PRINT_DEBUG("libdrakvuf initialized\n");
 
+    PRINT_DEBUG("PTBUF ALLOC\n");
+
+    for (unsigned int i = 0; i < (*drakvuf)->vcpus; i++) {
+        xen_ptbuf_enable((*drakvuf)->xen, (*drakvuf)->domID, i, 32 * 1024 * 4096);
+        xen_ptbuf_map((*drakvuf)->xen, (*drakvuf)->domID, i, &(*drakvuf)->pt_buf[i], &(*drakvuf)->pt_size[i]);
+    }
+
+    PRINT_DEBUG("PTBUF DONE\n");
+
     return 1;
 
 err:
@@ -232,6 +250,18 @@ err:
 void drakvuf_interrupt(drakvuf_t drakvuf, int sig)
 {
     drakvuf->interrupted = sig;
+}
+
+uint8_t* drakvuf_get_pt_buf(drakvuf_t drakvuf, int cpu_id)
+{
+    return (uint8_t *)drakvuf->pt_buf[cpu_id];
+}
+
+uint64_t drakvuf_get_pt_offset(drakvuf_t drakvuf, int cpu_id)
+{
+    uint64_t offset;
+    xen_ptbuf_get_offset(drakvuf->xen, drakvuf->domID, cpu_id, &offset);
+    return offset;
 }
 
 int drakvuf_is_interrupted(drakvuf_t drakvuf)
