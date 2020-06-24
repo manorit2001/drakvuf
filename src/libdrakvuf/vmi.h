@@ -122,6 +122,8 @@
 bool init_vmi(drakvuf_t drakvuf, bool libvmi_conf, bool fast_singlestep);
 void close_vmi(drakvuf_t drakvuf);
 
+event_response_t vmi_step_event_dispatch(vmi_instance_t vmi, vmi_event_t* event);
+
 event_response_t trap_guard(vmi_instance_t vmi, vmi_event_t* event);
 event_response_t vmi_reset_trap(vmi_instance_t vmi, vmi_event_t* event);
 event_response_t vmi_save_and_reset_trap(vmi_instance_t vmi, vmi_event_t* event);
