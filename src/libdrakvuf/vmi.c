@@ -151,7 +151,12 @@ event_response_t vmi_reset_trap(vmi_instance_t vmi, vmi_event_t* event)
     drakvuf_t drakvuf = (drakvuf_t)event->data;
     PRINT_DEBUG("reset trap on vCPU %u, switching altp2m %u->%u\n", event->vcpu_id, event->slat_id, drakvuf->altp2m_idx);
     event->slat_id = drakvuf->altp2m_idx;
-    return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP | // Turn off singlestep
+
+    // reset Trap Flag and don't reinject event into VM
+    event->x86_regs->rflags &= ~(1ULL << 8);
+    event->debug_event.reinject = 0;
+
+    return VMI_EVENT_RESPONSE_SET_REGISTERS |
            VMI_EVENT_RESPONSE_SLAT_ID;
 }
 
@@ -340,6 +345,10 @@ done:
 event_response_t pre_mem_cb(vmi_instance_t vmi, vmi_event_t* event)
 {
     UNUSED(vmi);
+
+    // PoC: we don't want this
+    return VMI_EVENT_RESPONSE_NONE;
+
     event_response_t rsp = 0;
     drakvuf_t drakvuf = (drakvuf_t)event->data;
 
@@ -625,14 +634,12 @@ event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t* event)
     if ( g_hash_table_lookup(drakvuf->breakpoint_lookup_pa, &pa) )
     {
         PRINT_DEBUG("Switching altp2m and to singlestep on vcpu %u\n", event->vcpu_id);
+
+        // turn on Trap Flag and set to original altp2m view (w/o breakpoint)
         event->slat_id = 0;
-        event->next_slat_id = drakvuf->altp2m_idx;
+        event->x86_regs->rflags |= (1ULL << 8);
 
-        // TODO: once support for Xen versions before 4.14 is dropped remove these lines
-        drakvuf->step_event[event->vcpu_id]->callback = vmi_reset_trap;
-        drakvuf->step_event[event->vcpu_id]->data = drakvuf;
-
-        return rsp | drakvuf->int3_response_flags;
+        return rsp | VMI_EVENT_RESPONSE_SET_REGISTERS | VMI_EVENT_RESPONSE_SLAT_ID;
     }
 
     return rsp;
@@ -1509,7 +1516,7 @@ bool init_vmi(drakvuf_t drakvuf, bool libvmi_conf)
      * Setup singlestep event handlers but don't turn on MTF.
      * Max 16 CPUs!
      */
-    for (i = 0; i < drakvuf->vcpus && i < 16; i++)
+    for (i = 0; i < 1; i++)
     {
         drakvuf->step_event[i] = (vmi_event_t*)g_try_malloc0(sizeof(vmi_event_t));
         if ( !drakvuf->step_event[i] )
@@ -1518,8 +1525,11 @@ bool init_vmi(drakvuf_t drakvuf, bool libvmi_conf)
             return 0;
         }
 
-        SETUP_SINGLESTEP_EVENT(drakvuf->step_event[i], 1u << i, vmi_reset_trap, 0);
         drakvuf->step_event[i]->data = drakvuf;
+        drakvuf->step_event[i]->version = VMI_EVENTS_VERSION;
+        drakvuf->step_event[i]->type = VMI_EVENT_DEBUG_EXCEPTION;
+        drakvuf->step_event[i]->callback = vmi_reset_trap;
+
         if (VMI_FAILURE == vmi_register_event(drakvuf->vmi, drakvuf->step_event[i]))
         {
             fprintf(stderr, "Failed to register singlestep for vCPU %u\n", i);
