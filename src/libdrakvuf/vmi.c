@@ -141,6 +141,17 @@ static inline void flush_vmi(drakvuf_t drakvuf)
     }
 }
 
+// PoC: beware of dragons here
+// PoC: working but at what cost
+vmi_event_t* fake_step_event[16];
+
+event_response_t vmi_step_event_dispatch(vmi_instance_t vmi, vmi_event_t* event)
+{
+    event->data = fake_step_event[event->vcpu_id]->data;
+    event->debug_event.reinject = 0;
+    return fake_step_event[event->vcpu_id]->callback(vmi, event);
+}
+
 /*
  * This function gets called from the singlestep event
  * after an int3 or a read event happens.
@@ -334,10 +345,11 @@ done:
     g_slice_free(struct memcb_pass, pass);
     /* We switch back to the altp2m view no matter what */
     event->slat_id = drakvuf->altp2m_idx;
-    drakvuf->step_event[event->vcpu_id]->callback = vmi_reset_trap;
-    drakvuf->step_event[event->vcpu_id]->data = drakvuf;
+    fake_step_event[event->vcpu_id]->callback = vmi_reset_trap;
+    fake_step_event[event->vcpu_id]->data = drakvuf;
+    event->x86_regs->rflags &= ~(1ULL << 8);
     return rsp |
-           VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP | // Turn off singlestep
+           VMI_EVENT_RESPONSE_SET_REGISTERS | // Turn off singlestep
            VMI_EVENT_RESPONSE_SLAT_ID;
 }
 
@@ -345,9 +357,6 @@ done:
 event_response_t pre_mem_cb(vmi_instance_t vmi, vmi_event_t* event)
 {
     UNUSED(vmi);
-
-    // PoC: we don't want this
-    return VMI_EVENT_RESPONSE_NONE;
 
     event_response_t rsp = 0;
     drakvuf_t drakvuf = (drakvuf_t)event->data;
@@ -512,10 +521,11 @@ event_response_t pre_mem_cb(vmi_instance_t vmi, vmi_event_t* event)
 
         PRINT_DEBUG("Switching to altp2m view %u on vCPU %u\n", event->slat_id, event->vcpu_id);
 
-        drakvuf->step_event[event->vcpu_id]->callback = post_mem_cb;
-        drakvuf->step_event[event->vcpu_id]->data = pass;
+        fake_step_event[event->vcpu_id]->callback = post_mem_cb;
+        fake_step_event[event->vcpu_id]->data = pass;
+        event->x86_regs->rflags |= (1ULL << 8);
         return rsp |
-               VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP | // Turn on singlestep
+               VMI_EVENT_RESPONSE_SET_REGISTERS |
                VMI_EVENT_RESPONSE_SLAT_ID;
     }
 
@@ -635,14 +645,18 @@ event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t* event)
     {
         PRINT_DEBUG("Switching altp2m and to singlestep on vcpu %u\n", event->vcpu_id);
 
+        fake_step_event[event->vcpu_id]->callback = vmi_reset_trap;
+        fake_step_event[event->vcpu_id]->data = drakvuf;
+
         // turn on Trap Flag and set to original altp2m view (w/o breakpoint)
         event->slat_id = 0;
+        // if (event->x86_regs->rflags & (1ULL << 8)) exit(1);
         event->x86_regs->rflags |= (1ULL << 8);
 
-        return rsp | VMI_EVENT_RESPONSE_SET_REGISTERS | VMI_EVENT_RESPONSE_SLAT_ID;
+        return VMI_EVENT_RESPONSE_SET_REGISTERS | VMI_EVENT_RESPONSE_SLAT_ID;
     }
 
-    return rsp;
+    return VMI_EVENT_RESPONSE_NONE;
 }
 
 event_response_t cr3_cb(vmi_instance_t vmi, vmi_event_t* event)
@@ -1516,25 +1530,26 @@ bool init_vmi(drakvuf_t drakvuf, bool libvmi_conf)
      * Setup singlestep event handlers but don't turn on MTF.
      * Max 16 CPUs!
      */
-    for (i = 0; i < 1; i++)
+    for (i = 0; i < drakvuf->vcpus && i < 16; i++)
     {
-        drakvuf->step_event[i] = (vmi_event_t*)g_try_malloc0(sizeof(vmi_event_t));
-        if ( !drakvuf->step_event[i] )
+        fake_step_event[i] = (vmi_event_t*)g_try_malloc0(sizeof(vmi_event_t));
+        if ( !fake_step_event[i] )
         {
             fprintf(stderr, "Out of memory during initialization\n");
             return 0;
         }
+    }
 
-        drakvuf->step_event[i]->data = drakvuf;
-        drakvuf->step_event[i]->version = VMI_EVENTS_VERSION;
-        drakvuf->step_event[i]->type = VMI_EVENT_DEBUG_EXCEPTION;
-        drakvuf->step_event[i]->callback = vmi_reset_trap;
+    drakvuf->step_event[0] = (vmi_event_t*)g_try_malloc0(sizeof(vmi_event_t));
+    drakvuf->step_event[0]->data = drakvuf;
+    drakvuf->step_event[0]->version = VMI_EVENTS_VERSION;
+    drakvuf->step_event[0]->type = VMI_EVENT_DEBUG_EXCEPTION;
+    drakvuf->step_event[0]->callback = vmi_step_event_dispatch;
 
-        if (VMI_FAILURE == vmi_register_event(drakvuf->vmi, drakvuf->step_event[i]))
-        {
-            fprintf(stderr, "Failed to register singlestep for vCPU %u\n", i);
-            return 0;
-        }
+    if (VMI_FAILURE == vmi_register_event(drakvuf->vmi, drakvuf->step_event[0]))
+    {
+        fprintf(stderr, "Failed to register singlestep for vCPU %u\n", i);
+        return 0;
     }
 
     /* domain->max_pages is mostly just an annoyance that we can safely ignore */
@@ -1618,13 +1633,6 @@ bool init_vmi(drakvuf_t drakvuf, bool libvmi_conf)
         PRINT_DEBUG("Failed to switch Altp2m view to X\n");
         return 0;
     }
-
-    if ( xen_version() >= 14 )
-        drakvuf->int3_response_flags = VMI_EVENT_RESPONSE_SLAT_ID |     // Switch to this ID immediately
-                                       VMI_EVENT_RESPONSE_NEXT_SLAT_ID; // Switch to next ID after singlestepping a single instruction
-    else
-        drakvuf->int3_response_flags = VMI_EVENT_RESPONSE_SLAT_ID |     // Switch to this ID immediately
-                                       VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP; // Turn on singlestep
 
     PRINT_DEBUG("init_vmi finished\n");
     return 1;
@@ -1727,19 +1735,19 @@ void close_vmi(drakvuf_t drakvuf)
     unsigned int i;
     for (i = 0; i < drakvuf->vcpus; i++)
     {
-        if ( !drakvuf->step_event[i] )
+        if ( !fake_step_event[i] )
             continue;
 
-        if ( drakvuf->step_event[i]->data != drakvuf )
+        if ( fake_step_event[i]->data != drakvuf )
         {
-            struct memcb_pass* pass = (struct memcb_pass*)drakvuf->step_event[i]->data;
+            struct memcb_pass* pass = (struct memcb_pass*)fake_step_event[i]->data;
             g_free(pass->proc_data.name);
             g_free(pass->attached_proc_data.name);
             g_slice_free(struct memcb_pass, pass);
         }
 
-        g_free(drakvuf->step_event[i]);
-        drakvuf->step_event[i] = NULL;
+        g_free(fake_step_event[i]);
+        fake_step_event[i] = NULL;
     }
 
     if (drakvuf->sink_page_gfn)
