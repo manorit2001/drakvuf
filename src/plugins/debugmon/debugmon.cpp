@@ -203,7 +203,9 @@ debugmon::debugmon(drakvuf_t _drakvuf, output_format_t _output)
     : format{_output}
     , drakvuf{_drakvuf}
 {
-    this->debug.cb = debug_cb;
+    // PoC: :dontwant:
+
+    /* this->debug.cb = debug_cb;
     this->debug.data = (void*)this;
     this->debug.type = DEBUG;
 
@@ -211,7 +213,7 @@ debugmon::debugmon(drakvuf_t _drakvuf, output_format_t _output)
     {
         fprintf(stderr, "Failed to register Debugmon plugin\n");
         throw -1;
-    }
+    } */
 }
 
 debugmon::~debugmon(void) {}
