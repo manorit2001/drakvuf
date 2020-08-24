@@ -102,198 +102,210 @@
  *                                                                         *
  ***************************************************************************/
 
-#ifndef DRAKVUF_PLUGINS_H
-#define DRAKVUF_PLUGINS_H
-
 #include <config.h>
-#include <stdlib.h>
+#include <glib.h>
 #include <inttypes.h>
-#include <sys/time.h>
-#include <libdrakvuf/libdrakvuf.h>
+#include <libvmi/libvmi.h>
+#include <libvmi/peparse.h>
+#include <assert.h>
+#include <libdrakvuf/json-util.h>
+#include <set>
 
-struct plugins_options
+#include "ipt.h"
+#include "plugins/output_format.h"
+#include "private.h"
+
+std::set<uint64_t> gfns;
+
+
+template<typename T>
+struct access_fault_result_t: public call_result_t<T>
 {
-    const char* dump_folder;            // PLUGIN_FILEDELETE
-    bool dump_modified_files;           // PLUGIN_FILEDELETE
-    bool filedelete_use_injector;       // PLUGIN_FILEDELETE
-    bool cpuid_stealth;                 // PLUGIN_CPUIDMON
-    const char* tcpip_profile;          // PLUGIN_SOCKETMON
-    const char* win32k_profile;         // PLUGIN_CLIPBOARDMON, PLUGIN_WINDOWMON, PLUGIN_SYSCALLS
-    const char* sspicli_profile;        // PLUGIN_ENVMON
-    const char* kernel32_profile;       // PLUGIN_ENVMON
-    const char* kernelbase_profile;     // PLUGIN_ENVMON
-    const char* wow_kernel32_profile;   // PLUGIN_ENVMON
-    const char* iphlpapi_profile;       // PLUGIN_ENVMON
-    const char* mpr_profile;            // PLUGIN_ENVMON
-    const char* syscalls_filter_file;   // PLUGIN_SYSCALLS
-    bool disable_sysret;                // PLUGIN_SYSCALLS
-    bool abort_on_bsod;                 // PLUGIN_BSODMON
-    const char* ntdll_profile;          // PLUGIN_LIBRARYMON
-    const char* ole32_profile;          // PLUGIN_WMIMON
-    const char* wow_ole32_profile;      // PLUGIN_WMIMON
-    const char* combase_profile;        // PLUGIN_WMIMON
-    const char* memdump_dir;            // PLUGIN_MEMDUMP
-    const char* dll_hooks_list;         // PLUGIN_MEMDUMP, PLUGIN_APIMON
-    const char* procdump_dir;           // PLUGIN_PROCDUMP
-    bool compress_procdumps = false;    // PLUGIN_PROCDUMP
-    const char* clr_profile;            // PLUGIN_MEMDUMP
-    const char* mscorwks_profile;       // PLUGIN_MEMDUMP
+    access_fault_result_t(T* src) : call_result_t<T>(src), fault_va() {}
+
+    addr_t fault_va;
 };
 
-typedef enum drakvuf_plugin
-{
-    PLUGIN_SYSCALLS,
-    PLUGIN_POOLMON,
-    PLUGIN_FILETRACER,
-    PLUGIN_FILEDELETE,
-    PLUGIN_OBJMON,
-    PLUGIN_EXMON,
-    PLUGIN_SSDTMON,
-    PLUGIN_DEBUGMON,
-    PLUGIN_DELAYMON,
-    PLUGIN_CPUIDMON,
-    PLUGIN_SOCKETMON,
-    PLUGIN_REGMON,
-    PLUGIN_PROCMON,
-    PLUGIN_BSODMON,
-    PLUGIN_ENVMON,
-    PLUGIN_CRASHMON,
-    PLUGIN_CLIPBOARDMON,
-    PLUGIN_WINDOWMON,
-    PLUGIN_LIBRARYMON,
-    PLUGIN_DKOMMON,
-    PLUGIN_WMIMON,
-    PLUGIN_MEMDUMP,
-    PLUGIN_APIMON,
-    PLUGIN_PROCDUMP,
-    PLUGIN_IPT,
-    __DRAKVUF_PLUGIN_LIST_MAX
-} drakvuf_plugin_t;
+int frame = 0;
 
-static const char* drakvuf_plugin_names[] =
-{
-    [PLUGIN_SYSCALLS] = "syscalls",
-    [PLUGIN_POOLMON] = "poolmon",
-    [PLUGIN_FILETRACER] = "filetracer",
-    [PLUGIN_FILEDELETE] = "filedelete",
-    [PLUGIN_OBJMON] = "objmon",
-    [PLUGIN_EXMON] = "exmon",
-    [PLUGIN_SSDTMON] = "ssdtmon",
-    [PLUGIN_DEBUGMON] = "debugmon",
-    [PLUGIN_DELAYMON] = "delaymon",
-    [PLUGIN_CPUIDMON] = "cpuidmon",
-    [PLUGIN_SOCKETMON] = "socketmon",
-    [PLUGIN_REGMON] = "regmon",
-    [PLUGIN_PROCMON] = "procmon",
-    [PLUGIN_BSODMON] = "bsodmon",
-    [PLUGIN_ENVMON] = "envmon",
-    [PLUGIN_CRASHMON] = "crashmon",
-    [PLUGIN_CLIPBOARDMON] = "clipboardmon",
-    [PLUGIN_WINDOWMON] = "windowmon",
-    [PLUGIN_LIBRARYMON] = "librarymon",
-    [PLUGIN_DKOMMON] = "dkommon",
-    [PLUGIN_WMIMON] = "wmimon",
-    [PLUGIN_MEMDUMP] = "memdump",
-    [PLUGIN_APIMON] = "apimon",
-    [PLUGIN_PROCDUMP] = "procdump",
-    [PLUGIN_IPT] = "ipt",
-};
+/* static event_response_t execute_faulted_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info);
 
-static const bool drakvuf_plugin_os_support[__DRAKVUF_PLUGIN_LIST_MAX][VMI_OS_WINDOWS+1] =
-{
-    [PLUGIN_SYSCALLS]     = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 1 },
-    [PLUGIN_POOLMON]      = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_FILETRACER]   = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 1 },
-    [PLUGIN_FILEDELETE]   = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_OBJMON]       = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_EXMON]        = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_SSDTMON]      = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_DEBUGMON]     = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 1 },
-    [PLUGIN_DELAYMON]     = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_CPUIDMON]     = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 1 },
-    [PLUGIN_SOCKETMON]    = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_REGMON]       = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_PROCMON]      = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_BSODMON]      = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_ENVMON]       = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_CRASHMON]     = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_CLIPBOARDMON] = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_WINDOWMON]    = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_LIBRARYMON]   = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_DKOMMON]      = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_WMIMON]       = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_MEMDUMP]      = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_APIMON]       = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_PROCDUMP]     = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-    [PLUGIN_IPT]          = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
-};
+static event_response_t catch_frame_write(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
+    ipt* plugin = (ipt *)info->trap->data;
+    vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
 
-class plugin
-{
-public:
-    virtual ~plugin() = default;
-};
+    page_info_t p_info = {};
 
-class drakvuf_plugins
-{
-private:
-    drakvuf_t drakvuf;
-    output_format_t output;
-    os_t os;
-    plugin* plugins[__DRAKVUF_PLUGIN_LIST_MAX] = { [0 ... __DRAKVUF_PLUGIN_LIST_MAX-1] = nullptr };
-
-public:
-    drakvuf_plugins(drakvuf_t drakvuf, output_format_t output, os_t os);
-    ~drakvuf_plugins();
-    int start(drakvuf_plugin_t plugin, const plugins_options* config);
-};
-
-/***************************************************************************/
-
-struct vmi_lock_guard
-{
-    vmi_lock_guard(drakvuf_t drakvuf_) : drakvuf(drakvuf_), vmi()
-    {
-        lock();
+    if (VMI_SUCCESS != vmi_pagetable_lookup_extended(vmi, info->regs->cr3, info->regs->rip, &p_info)) {
+        PRINT_DEBUG("[MEMDUMP] failed to lookup page info 2\n");
+        drakvuf_release_vmi(drakvuf);
+        return VMI_EVENT_RESPONSE_NONE;
     }
 
-    vmi_instance_t lock()
-    {
-        if (!vmi)
-            vmi = drakvuf_lock_and_get_vmi(drakvuf);
+    drakvuf_trap_t *wtf_trap = (drakvuf_trap_t *)malloc(sizeof(drakvuf_trap_t));
 
-        return vmi;
+    wtf_trap->type = MEMACCESS;
+    wtf_trap->memaccess.gfn = p_info.paddr;
+    wtf_trap->memaccess.type = PRE;
+    wtf_trap->memaccess.access = VMI_MEMACCESS_X;
+    wtf_trap->data = plugin;
+    wtf_trap->cb = execute_faulted_cb;
+    wtf_trap->name = nullptr;
+    drakvuf_add_trap(drakvuf, wtf_trap);
+
+    drakvuf_release_vmi(drakvuf);
+
+    drakvuf_remove_trap(drakvuf, info->trap, nullptr);
+
+    printf("flip trap to X\n");
+    return VMI_EVENT_RESPONSE_NONE;
+} */
+
+static event_response_t execute_faulted_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
+    //ipt* plugin = (ipt *)info->trap->data;
+    vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
+    access_context_t ctx =
+    {
+        .translate_mechanism = VMI_TM_PROCESS_DTB,
+        .dtb = info->regs->cr3,
+        .addr = (info->regs->rip >> 12) << 12
+    };
+
+    size_t bytes_read = 0;
+    uint8_t pagebuf[4096] = {0,};
+
+    vmi_read(vmi, &ctx, 4096, pagebuf, &bytes_read);
+
+    char buf[128];
+    sprintf(buf, "/tmp/frames/frame_%05d", frame);
+    FILE *fp = fopen(buf, "wb");
+
+    if (!fp)
+    {
+        printf("/tmp/frames doesnt exist?\n");
+	return VMI_EVENT_RESPONSE_NONE;
     }
 
-    bool unlock()
-    {
-        if (vmi)
-        {
-            drakvuf_release_vmi(drakvuf);
-            vmi = nullptr;
-            return true;
+    fwrite(pagebuf, 1, bytes_read, fp);
+    fclose(fp);
+
+    uint64_t tsc = __rdtsc();
+
+    jsonfmt::print("execframe", drakvuf, info,
+                   keyval("FrameFile", fmt::Qstr(buf)),
+                   keyval("FrameVA", fmt::Xval((info->regs->rip >> 12) << 12)),
+                   keyval("CR3", fmt::Xval(info->regs->cr3)),
+                   keyval("TSC", fmt::Nval(tsc))
+                   );
+
+    frame++;
+
+    PRINT_DEBUG("[MQWTF] Caught X on PA 0x%lx, frame VA %llx, CR3 %lx\n", info->trap_pa, (unsigned long long)info->regs->rip, info->regs->cr3);
+
+    drakvuf_release_vmi(drakvuf);
+
+    drakvuf_remove_trap(drakvuf, info->trap, nullptr);
+
+    return VMI_EVENT_RESPONSE_NONE;
+}
+
+static event_response_t mm_access_fault_return_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
+	auto data = get_trap_params<ipt, access_fault_result_t<ipt>>(info);
+	if (!data || !data->plugin())
+	{
+		PRINT_DEBUG("ipt mm_access_fault invalid trap params!\n");
+		drakvuf_remove_trap(drakvuf, info->trap, nullptr);
+		return VMI_EVENT_RESPONSE_NONE;
+	}
+
+	if (!data->verify_result_call_params(info, drakvuf_get_current_thread(drakvuf, info)))
+		return VMI_EVENT_RESPONSE_NONE;
+
+	ipt* plugin = data->plugin();
+
+	vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
+        page_info_t p_info = {};
+        if (VMI_SUCCESS != vmi_pagetable_lookup_extended(vmi, info->regs->cr3, data->fault_va, &p_info)) {
+                PRINT_DEBUG("[MEMDUMP] failed to lookup page info\n");
+		drakvuf_release_vmi(drakvuf);
+                return VMI_EVENT_RESPONSE_NONE;
         }
-        return false;
 
-    }
+        PRINT_DEBUG("[MQWTF] MmAccessFault(%d, %lx) => %lx\n", info->proc_data.pid, data->fault_va, p_info.paddr);
 
-    bool is_lock() const
+	drakvuf_trap_t *wtf_trap = (drakvuf_trap_t *)malloc(sizeof(drakvuf_trap_t));
+
+	wtf_trap->type = MEMACCESS;
+	wtf_trap->memaccess.gfn = p_info.paddr >> 12;
+	wtf_trap->memaccess.type = PRE;
+	wtf_trap->memaccess.access = VMI_MEMACCESS_X;
+	wtf_trap->data = plugin;
+	wtf_trap->cb = execute_faulted_cb;
+	wtf_trap->name = nullptr;
+
+//	if ((p_info.paddr >> 12) == 0x29430)
+//        printf("[MQWTF] Ignore paddr 29430\n");
+//        else
+
+        if (gfns.find(p_info.paddr >> 12) == gfns.end())
+            drakvuf_add_trap(drakvuf, wtf_trap);
+        else
+            PRINT_DEBUG("[MQWTF] Don't trap X on GFN 0x%lx was already trapped\n", p_info.paddr >> 12);
+
+	gfns.insert(p_info.paddr >> 12);
+	PRINT_DEBUG("[MQWTF] Trap X on GFN 0x%lx\n", p_info.paddr >> 12);
+
+	drakvuf_release_vmi(drakvuf);
+
+	plugin->destroy_trap(drakvuf, info->trap);
+
+	return VMI_EVENT_RESPONSE_NONE;
+}
+
+static event_response_t mm_access_fault_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
+    addr_t fault_va = drakvuf_get_function_argument(drakvuf, info, 2);
+    // printf("[MQWTF] MmAccessFault(%d, %lx)\n", info->proc_data.pid, fault_va);
+
+    if (fault_va & (1ULL << 63))
     {
-        return vmi == nullptr ? true : false;
+        PRINT_DEBUG("[MQWTF] Don't trap in kernel %d %lx\n", info->proc_data.pid, fault_va);
+        return VMI_EVENT_RESPONSE_NONE;
     }
 
-    operator vmi_instance_t() const
+    auto plugin = get_trap_plugin<ipt>(info);
+    if (!plugin)
+        return VMI_EVENT_RESPONSE_NONE;
+
+    auto trap = plugin->register_trap<ipt, access_fault_result_t<ipt>>(
+            drakvuf,
+            info,
+            plugin,
+            mm_access_fault_return_hook_cb,
+            breakpoint_by_pid_searcher());
+    if (!trap)
+        return VMI_EVENT_RESPONSE_NONE;
+
+    auto data = get_trap_params<ipt, access_fault_result_t<ipt>>(trap);
+    if (!data)
     {
-        return vmi;
+        plugin->destroy_plugin_params(plugin->detach_plugin_params(trap));
+        return VMI_EVENT_RESPONSE_NONE;
     }
 
-    ~vmi_lock_guard()
+    data->set_result_call_params(info, drakvuf_get_current_thread(drakvuf, info));
+    data->fault_va = fault_va;
+
+    return VMI_EVENT_RESPONSE_NONE;
+}
+
+ipt::ipt(drakvuf_t drakvuf, const ipt_config* c, output_format_t output)
+    : pluginex(drakvuf, output)
+{
+    breakpoint_in_system_process_searcher bp;
+
+    if (!register_trap<ipt>(drakvuf, nullptr, this, mm_access_fault_hook_cb, bp.for_syscall_name("MmAccessFault")))
     {
-        unlock();
+        throw -1;
     }
+}
 
-    drakvuf_t drakvuf;
-    vmi_instance_t vmi;
-};
-
-#endif

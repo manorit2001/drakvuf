@@ -128,6 +128,7 @@
 #include "memdump/memdump.h"
 #include "apimon/apimon.h"
 #include "procdump/procdump.h"
+#include "ipt/ipt.h"
 
 drakvuf_plugins::drakvuf_plugins(const drakvuf_t _drakvuf, output_format_t _output, os_t _os)
     : drakvuf{ _drakvuf }, output{ _output }, os{ _os }
@@ -355,6 +356,13 @@ int drakvuf_plugins::start(const drakvuf_plugin_t plugin_id,
                     this->plugins[plugin_id] =
                         new procdump(this->drakvuf, &config, this->output);
                     break;
+                }
+#endif
+#ifdef ENABLE_PLUGIN_IPT
+                case PLUGIN_IPT:
+                {
+                    ipt_config config = {};
+                    this->plugins[plugin_id] = new ipt(this->drakvuf, &config, this->output);
                 }
 #endif
                 case __DRAKVUF_PLUGIN_LIST_MAX: /* fall-through */
