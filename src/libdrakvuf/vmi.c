@@ -665,6 +665,30 @@ event_response_t cr3_cb(vmi_instance_t vmi, vmi_event_t* event)
         PRINT_DEBUG("CR3 cb on vCPU %u: 0x%" PRIx64 "\n", event->vcpu_id, event->reg_event.value);
 #endif
 
+    for (unsigned int i = 0; i < drakvuf->vcpus; i++)
+    {
+        int ret = xen_get_ipt_offset(drakvuf->xen, drakvuf->domID, i, &drakvuf->ipt_state[i]);
+
+        if (!ret)
+        {
+            PRINT_DEBUG("Failed to get ipt offset for vcpu %d\n", i);
+	    continue;
+        }
+
+        PRINT_DEBUG("IPT OFFSET VCPU %d CUR %llx LAST %llx\n", i, (unsigned long long)drakvuf->ipt_state[i].offset, (unsigned long long)drakvuf->ipt_state[i].last_offset);
+        ipt_state_t* ipt_state = &drakvuf->ipt_state[i];
+
+        if (ipt_state->offset > ipt_state->last_offset)
+        {
+            fwrite(ipt_state->buf + ipt_state->last_offset, ipt_state->offset - ipt_state->last_offset, 1, ipt_state->fd);
+        }
+        else if (ipt_state->offset < ipt_state->last_offset)
+        {
+            fwrite(ipt_state->buf + ipt_state->last_offset, ipt_state->size - ipt_state->last_offset, 1, ipt_state->fd);
+            fwrite(ipt_state->buf, ipt_state->offset, 1, ipt_state->fd);
+        }
+    }
+
     event->x86_regs->cr3 = event->reg_event.value;
 
     proc_data_priv_t proc_data;

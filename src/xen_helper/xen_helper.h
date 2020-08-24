@@ -133,6 +133,7 @@ typedef struct ipt_state
     uint64_t last_offset;
 
     xenforeignmemory_resource_handle *fres;
+    FILE *fd;
 } ipt_state_t;
 
 /* FUNCTIONS */
