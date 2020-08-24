@@ -216,6 +216,20 @@ bool drakvuf_init(drakvuf_t* drakvuf, const char* domain, const char* json_kerne
             goto err;
     }
 
+    for (unsigned int i = 0; i < (*drakvuf)->vcpus; i++)
+    {
+        char buf[50];
+        int ret = xen_enable_ipt((*drakvuf)->xen, (*drakvuf)->domID, i, &(*drakvuf)->ipt_state[i]);
+        sprintf(buf, "/tmp/ipt%u", i);
+        (*drakvuf)->ipt_state[i].fd = fopen(buf, "wb");
+
+        if (!ret)
+        {
+            fprintf(stderr, "Failed to enable IPT for vcpu %d\n", i);
+            fprintf(stderr, "Make sure your processor supports IPT and you have processor_trace_buf_kb=... in VM's config file\n");
+        }
+    }
+
     PRINT_DEBUG("libdrakvuf initialized\n");
 
     return 1;

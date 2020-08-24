@@ -102,128 +102,208 @@
  *                                                                         *
  ***************************************************************************/
 
-#ifndef WIN_USERHOOK_H
-#define WIN_USERHOOK_H
-
-#include <vector>
-#include <memory>
-
+#include <config.h>
 #include <glib.h>
-#include "plugins/private.h"
-#include "plugins/plugins_ex.h"
-#include "printers/printers.hpp"
+#include <inttypes.h>
+#include <libvmi/libvmi.h>
+#include <libvmi/peparse.h>
+#include <assert.h>
+#include <libdrakvuf/json-util.h>
+#include <set>
 
-typedef event_response_t (*callback_t)(drakvuf_t drakvuf, drakvuf_trap_info* info);
+#include "ipt.h"
+#include "plugins/output_format.h"
+#include "private.h"
 
-enum target_hook_type
-{
-    HOOK_BY_NAME,
-    HOOK_BY_OFFSET
-};
+std::set<uint64_t> gfns;
 
-struct plugin_target_config_entry_t
-{
-    std::string dll_name;
-    target_hook_type type;
-    std::string function_name;
-    addr_t offset;
-    std::string log_strategy;
-    std::vector< std::unique_ptr< ArgumentPrinter > > argument_printers;
 
-    plugin_target_config_entry_t()
-        : dll_name(), function_name(), offset(), log_strategy(), argument_printers()
-    {}
-
-    plugin_target_config_entry_t(std::string&& dll_name, std::string&& function_name, addr_t offset, std::string&& log_strategy, std::vector< std::unique_ptr< ArgumentPrinter > > &&argument_printers)
-        : dll_name(std::move(dll_name)), type(HOOK_BY_OFFSET), function_name(std::move(function_name)), offset(offset), log_strategy(std::move(log_strategy)), argument_printers(std::move(argument_printers))
-    {}
-
-    plugin_target_config_entry_t(std::string&& dll_name, std::string&& function_name, std::string&& log_strategy, std::vector< std::unique_ptr< ArgumentPrinter > > &&argument_printers)
-        : dll_name(std::move(dll_name)), type(HOOK_BY_NAME), function_name(std::move(function_name)), log_strategy(std::move(log_strategy)), argument_printers(std::move(argument_printers))
-    {}
-};
-
-enum target_hook_state
-{
-    HOOK_FIRST_TRY,
-    HOOK_PAGEFAULT_RETRY,
-    HOOK_FAILED,
-    HOOK_OK
-};
-
-struct hook_target_entry_t
-{
-    vmi_pid_t pid;
-    target_hook_type type;
-    std::string target_name;
-    addr_t offset;
-    callback_t callback;
-    const std::vector < std::unique_ptr < ArgumentPrinter > > &argument_printers;
-    target_hook_state state;
-    drakvuf_trap_t* trap;
-    void* plugin;
-
-    hook_target_entry_t(std::string target_name, callback_t callback, const std::vector < std::unique_ptr < ArgumentPrinter > > &argument_printers, void* plugin)
-        : type(HOOK_BY_NAME), target_name(target_name), offset(0), callback(callback), argument_printers(argument_printers), state(HOOK_FIRST_TRY), plugin(plugin)
-    {}
-
-    hook_target_entry_t(std::string target_name, addr_t offset, callback_t callback, const std::vector < std::unique_ptr < ArgumentPrinter > > &argument_printers, void* plugin)
-        : type(HOOK_BY_OFFSET), target_name(target_name), offset(offset), callback(callback), argument_printers(argument_printers), state(HOOK_FIRST_TRY), plugin(plugin)
-    {}
-};
-
-struct return_hook_target_entry_t
-{
-    vmi_pid_t pid;
-    drakvuf_trap_t* trap;
-    void* plugin;
-    std::vector < uint64_t > arguments;
-    const std::vector < std::unique_ptr < ArgumentPrinter > > &argument_printers;
+struct wtf_struct {
+    ipt* plugin;
     addr_t rip;
-    uint32_t fwd_int3_num;
-
-    return_hook_target_entry_t(vmi_pid_t pid, void* plugin, const std::vector < std::unique_ptr < ArgumentPrinter > > &argument_printers, addr_t rip, uint32_t fwd_int3_num) :
-        pid(pid), plugin(plugin), argument_printers(argument_printers), rip(rip), fwd_int3_num(fwd_int3_num) {}
 };
 
-struct hook_target_view_t
+template<typename T>
+struct access_fault_result_t: public call_result_t<T>
 {
-    std::string target_name;
-    addr_t offset;
-    target_hook_state state;
+    access_fault_result_t(T* src) : call_result_t<T>(src), fault_va() {}
 
-    hook_target_view_t(std::string target_name, addr_t offset, target_hook_state state)
-        : target_name(target_name), offset(offset), state(state) {}
+    addr_t fault_va;
 };
 
-struct dll_view_t
-{
-    // relevant while loading
-    addr_t dtb;
-    uint32_t thread_id;
-    addr_t real_dll_base;
+int frame = 0;
+
+static event_response_t execute_faulted_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
+    struct wtf_struct *wtf_inst = (struct wtf_struct *)info->trap->data;
+    vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
+    access_context_t ctx =
+    {
+        .translate_mechanism = VMI_TM_PROCESS_DTB,
+        .dtb = info->regs->cr3,
+        .addr = wtf_inst->rip
+    };
+
+    size_t bytes_read = 0;
+    uint8_t pagebuf[4096] = {0,};
+
+    vmi_read(vmi, &ctx, 4096, pagebuf, &bytes_read);
+
+    char buf[128];
+    sprintf(buf, "/tmp/frames/frame_%05d", frame);
+    FILE *fp = fopen(buf, "wb");
+
+    if (!fp)
+    {
+        printf("/tmp/frames doesnt exist?\n");
+        drakvuf_release_vmi(drakvuf);
+        return VMI_EVENT_RESPONSE_NONE;
+    }
+
+    fwrite(pagebuf, 1, bytes_read, fp);
+    fclose(fp);
+
+    uint64_t tsc = __rdtsc();
+
     mmvad_info_t mmvad;
-    bool is_hooked;
-};
+    unicode_string_t* dll_name = nullptr;
+    char *dll_name_str = nullptr;
+    char wtf[] = "(null)";
 
-typedef void (*dll_pre_hook_cb)(drakvuf_t, const dll_view_t*, void*);
-typedef void (*dll_post_hook_cb)(drakvuf_t, const dll_view_t*, const std::vector<hook_target_view_t> &targets, void*);
+    addr_t base_va = 0;
+    addr_t end_va = 0;
 
-struct usermode_cb_registration {
-    dll_pre_hook_cb pre_cb;
-    dll_post_hook_cb post_cb;
-    void* extra;
-};
+    if (drakvuf_find_mmvad(drakvuf, info->proc_data.base_addr, wtf_inst->rip, &mmvad))
+    {
+        dll_name = drakvuf_read_unicode_va(vmi, mmvad.file_name_ptr, 0);
+        dll_name_str = dll_name != nullptr ? (char *)dll_name->contents : nullptr;
 
-typedef enum usermode_reg_status {
-    USERMODE_REGISTER_ERROR,
-    USERMODE_REGISTER_SUCCESS,
-    USERMODE_ARCH_UNSUPPORTED,
-    USERMODE_OS_UNSUPPORTED,
-} usermode_reg_status_t;
+        base_va = mmvad.starting_vpn << 12;
+        end_va = ((mmvad.ending_vpn + 1) << 12) - 1;
+    }
 
-usermode_reg_status_t drakvuf_register_usermode_callback(drakvuf_t drakvuf, usermode_cb_registration* reg);
-bool drakvuf_request_usermode_hook(drakvuf_t drakvuf, const dll_view_t* dll, target_hook_type type, const char* func_name, addr_t offset, callback_t callback, const std::vector< std::unique_ptr< ArgumentPrinter > > &argument_printers, void* extra);
-void drakvuf_load_dll_hook_config(drakvuf_t drakvuf, const char* dll_hooks_list_path, std::vector<plugin_target_config_entry_t>* wanted_hooks);
+    if (!dll_name_str)
+        dll_name_str = wtf;
 
-#endif
+    jsonfmt::print("execframe", drakvuf, info,
+            keyval("FrameFile", fmt::Qstr(buf)),
+            keyval("FrameVA", fmt::Xval(wtf_inst->rip)),
+            keyval("TrapPA", fmt::Xval(info->trap_pa)),
+            keyval("CR3", fmt::Xval(info->regs->cr3)),
+            keyval("TSC", fmt::Nval(tsc)),
+            keyval("VADName", fmt::Qstr(dll_name_str)),
+            keyval("VADBase", fmt::Xval(base_va)),
+            keyval("VADEnd", fmt::Xval(end_va))
+            );
+
+    if (dll_name)
+        vmi_free_unicode_str(dll_name);
+
+    frame++;
+
+    PRINT_DEBUG("[MQWTF] Caught X on PA 0x%lx, frame VA %llx, CR3 %lx\n", info->trap_pa, (unsigned long long)info->regs->rip, info->regs->cr3);
+
+    drakvuf_release_vmi(drakvuf);
+
+    drakvuf_remove_trap(drakvuf, info->trap, nullptr);
+
+    return VMI_EVENT_RESPONSE_NONE;
+}
+
+static event_response_t mm_access_fault_return_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
+	auto data = get_trap_params<ipt, access_fault_result_t<ipt>>(info);
+	if (!data || !data->plugin())
+	{
+		PRINT_DEBUG("ipt mm_access_fault invalid trap params!\n");
+		drakvuf_remove_trap(drakvuf, info->trap, nullptr);
+		return VMI_EVENT_RESPONSE_NONE;
+	}
+
+	if (!data->verify_result_call_params(info, drakvuf_get_current_thread(drakvuf, info)))
+		return VMI_EVENT_RESPONSE_NONE;
+
+	ipt* plugin = data->plugin();
+
+    vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
+    page_info_t p_info = {};
+    if (VMI_SUCCESS != vmi_pagetable_lookup_extended(vmi, info->regs->cr3, data->fault_va, &p_info)) {
+        PRINT_DEBUG("[MEMDUMP] failed to lookup page info\n");
+        drakvuf_release_vmi(drakvuf);
+        return VMI_EVENT_RESPONSE_NONE;
+    }
+
+    jsonfmt::print("pagefault", drakvuf, info,
+                   keyval("CR3", fmt::Xval(info->regs->cr3)),
+                   keyval("VA", fmt::Xval(data->fault_va)),
+                   keyval("PA", fmt::Xval(p_info.paddr))
+    );
+
+    struct wtf_struct *wtf_inst = (struct wtf_struct *)malloc(sizeof(struct wtf_struct));
+	wtf_inst->plugin = plugin;
+	wtf_inst->rip = ((data->fault_va >> 12) << 12);
+	drakvuf_trap_t *wtf_trap = (drakvuf_trap_t *)malloc(sizeof(drakvuf_trap_t));
+
+	wtf_trap->type = MEMACCESS;
+	wtf_trap->memaccess.gfn = p_info.paddr >> 12;
+	wtf_trap->memaccess.type = PRE;
+	wtf_trap->memaccess.access = VMI_MEMACCESS_X;
+	wtf_trap->data = wtf_inst; // FIXME memleak
+	wtf_trap->cb = execute_faulted_cb;
+	wtf_trap->name = nullptr;
+
+    drakvuf_add_trap(drakvuf, wtf_trap);
+	PRINT_DEBUG("[MQWTF] Trap X on GFN 0x%lx\n", p_info.paddr >> 12);
+
+	drakvuf_release_vmi(drakvuf);
+
+	plugin->destroy_trap(drakvuf, info->trap);
+
+	return VMI_EVENT_RESPONSE_NONE;
+}
+
+static event_response_t mm_access_fault_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
+    addr_t fault_va = drakvuf_get_function_argument(drakvuf, info, 2);
+    // printf("[MQWTF] MmAccessFault(%d, %lx)\n", info->proc_data.pid, fault_va);
+
+    if (fault_va & (1ULL << 63))
+    {
+        PRINT_DEBUG("[MQWTF] Don't trap in kernel %d %lx\n", info->proc_data.pid, fault_va);
+        return VMI_EVENT_RESPONSE_NONE;
+    }
+
+    auto plugin = get_trap_plugin<ipt>(info);
+    if (!plugin)
+        return VMI_EVENT_RESPONSE_NONE;
+
+    auto trap = plugin->register_trap<ipt, access_fault_result_t<ipt>>(
+            drakvuf,
+            info,
+            plugin,
+            mm_access_fault_return_hook_cb,
+            breakpoint_by_pid_searcher());
+    if (!trap)
+        return VMI_EVENT_RESPONSE_NONE;
+
+    auto data = get_trap_params<ipt, access_fault_result_t<ipt>>(trap);
+    if (!data)
+    {
+        plugin->destroy_plugin_params(plugin->detach_plugin_params(trap));
+        return VMI_EVENT_RESPONSE_NONE;
+    }
+
+    data->set_result_call_params(info, drakvuf_get_current_thread(drakvuf, info));
+    data->fault_va = fault_va;
+
+    return VMI_EVENT_RESPONSE_NONE;
+}
+
+ipt::ipt(drakvuf_t drakvuf, const ipt_config* c, output_format_t output)
+    : pluginex(drakvuf, output)
+{
+    breakpoint_in_system_process_searcher bp;
+
+    if (!register_trap<ipt>(drakvuf, nullptr, this, mm_access_fault_hook_cb, bp.for_syscall_name("MmAccessFault")))
+    {
+        throw -1;
+    }
+}
+

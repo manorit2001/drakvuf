@@ -363,6 +363,7 @@ static arch_t get_arch(drakvuf_t drakvuf)
 envmon::envmon(drakvuf_t drakvuf, const envmon_config* c, output_format_t output)
     : pluginex(drakvuf, output)
 {
+    return;
     auto winver = get_win_ver(drakvuf);
     if (!c->sspicli_profile)
     {

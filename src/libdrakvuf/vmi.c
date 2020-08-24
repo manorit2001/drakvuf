@@ -178,6 +178,65 @@ void process_free_requests(drakvuf_t drakvuf)
     drakvuf->remove_traps = g_hash_table_new_full(g_int64_hash, g_int64_equal, free, NULL);
 }
 
+#define PTW_CURRENT_CR3  (0xC3000000)
+#define PTW_CURRENT_TID  (0x1D000000)
+#define PTW_EVENT_ID     (0xCC000000)
+#define PTW_ERROR_EMPTY  (0xBAD10000)
+
+/*
+ * Dump current IPT logs to disk and annotate them with custom PTWRITE packets
+ */
+static inline
+int annotate_ipt(drakvuf_t drakvuf, vmi_event_t* event, uint32_t* payloads, size_t num_payloads)
+{
+    int ret = xen_get_ipt_offset(drakvuf->xen, drakvuf->domID, event->vcpu_id, &drakvuf->ipt_state[event->vcpu_id]);
+    int fail = 0;
+
+    if (!ret)
+    {
+        PRINT_DEBUG("annotate_ipt() failed to get ipt offset for vcpu %d\n", event->vcpu_id);
+        return 0;
+    }
+
+    PRINT_DEBUG("annotate_ipt() vCPU: %d IPT_CUR: %llx IPT_LAST: %llx\n", event->vcpu_id, (unsigned long long)drakvuf->ipt_state[event->vcpu_id].offset, (unsigned long long)drakvuf->ipt_state[event->vcpu_id].last_offset);
+    ipt_state_t* ipt_state = &drakvuf->ipt_state[event->vcpu_id];
+
+    if (ipt_state->offset > ipt_state->last_offset)
+    {
+        fwrite(ipt_state->buf + ipt_state->last_offset, ipt_state->offset - ipt_state->last_offset, 1, ipt_state->fd);
+    }
+    else if (ipt_state->offset < ipt_state->last_offset)
+    {
+        fwrite(ipt_state->buf + ipt_state->last_offset, ipt_state->size - ipt_state->last_offset, 1, ipt_state->fd);
+        fwrite(ipt_state->buf, ipt_state->offset, 1, ipt_state->fd);
+    }
+    else
+    {
+        PRINT_DEBUG("annotate_ipt() called but no new IPT data is present\n");
+        fail = 1;
+    }
+
+    uint8_t ptwrite_packet[10] = {0x02, 0x32,};
+    uint32_t *ptwrite_low = (uint32_t*)&ptwrite_packet[2];
+    uint32_t *ptwrite_high = (uint32_t*)&ptwrite_packet[6];
+
+    for (size_t i = 0; i < num_payloads; i++)
+    {
+        *ptwrite_high = payloads[i * 2];
+        *ptwrite_low = payloads[(i * 2) + 1];
+        fwrite(ptwrite_packet, 10, 1, ipt_state->fd);
+    }
+
+    if (fail)
+    {
+        *ptwrite_high = PTW_ERROR_EMPTY;
+        *ptwrite_low = 0;
+        fwrite(ptwrite_packet, 10, 1, ipt_state->fd);
+    }
+
+    return 1;
+}
+
 /* Here we are in singlestep mode already and this is a singlstep cb */
 event_response_t post_mem_cb(vmi_instance_t vmi, vmi_event_t* event)
 {
@@ -527,6 +586,8 @@ event_response_t pre_mem_cb(vmi_instance_t vmi, vmi_event_t* event)
     return rsp;
 }
 
+int int3_num = 0;
+
 event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t* event)
 {
     UNUSED(vmi);
@@ -593,6 +654,17 @@ event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t* event)
     trap_info.regs = event->x86_regs;
     trap_info.vcpu = event->vcpu_id;
     trap_info.trap_pa = pa;
+
+    if ( s->traps )
+        trap_info.int3_num = ++int3_num;
+    else
+        trap_info.int3_num = 0;
+
+    uint32_t payloads[2] = {
+        PTW_EVENT_ID, int3_num
+    };
+
+    annotate_ipt(drakvuf, event, payloads, 1);
 
     drakvuf_get_current_process_data( drakvuf, &trap_info, &proc_data );
     addr_t attached_proc = drakvuf_get_current_attached_process(drakvuf, &trap_info);
@@ -701,6 +773,13 @@ event_response_t cr3_cb(vmi_instance_t vmi, vmi_event_t* event)
     trap_info.attached_proc_data.ppid      = attached_proc_data.ppid;
     trap_info.attached_proc_data.userid    = attached_proc_data.userid;
     trap_info.attached_proc_data.tid       = attached_proc_data.tid;
+
+    uint32_t payloads[4] = {
+        PTW_CURRENT_CR3, event->reg_event.value,
+        PTW_CURRENT_TID, proc_data.tid
+    };
+
+    annotate_ipt(drakvuf, event, payloads, 2);
 
     drakvuf->in_callback = 1;
     GSList* loop = drakvuf->cr3;

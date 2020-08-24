@@ -357,6 +357,17 @@ if test x$plugin_procdump = xyes; then
   AC_DEFINE_UNQUOTED(ENABLE_PLUGIN_PROCDUMP, 1, "")
 fi
 
+AC_ARG_ENABLE([plugin_ipt],
+  [AS_HELP_STRING([--disable-plugin-ipt],
+    [Enable processor trace plugin @<:@yes@:>@])],
+  [plugin_ipt="$enableval"],
+  [plugin_ipt="yes"])
+AM_CONDITIONAL([PLUGIN_IPT], [test x$plugin_ipt = xyes])
+if test x$plugin_ipt = xyes; then
+  AC_DEFINE_UNQUOTED(ENABLE_PLUGIN_IPT, 1, "")
+fi
+
+
 #####################################################
 
 AC_ARG_ENABLE([repl],
@@ -632,6 +643,7 @@ WMIMon:       $plugin_wmimon
 MEMDump:      $plugin_memdump
 ProcDump:     $plugin_procdump
 APIMon:       $plugin_apimon
+IPT:          $plugin_ipt
 -------------------------------------------------------------------------------
 REPL:         $repl
 -------------------------------------------------------------------------------])
