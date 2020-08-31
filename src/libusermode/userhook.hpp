@@ -179,9 +179,10 @@ struct return_hook_target_entry_t
     void* plugin;
     std::vector < uint64_t > arguments;
     const std::vector < std::unique_ptr < ArgumentPrinter > > &argument_printers;
+    addr_t rip;
 
-    return_hook_target_entry_t(vmi_pid_t pid, void* plugin, const std::vector < std::unique_ptr < ArgumentPrinter > > &argument_printers) :
-        pid(pid), plugin(plugin), argument_printers(argument_printers) {}
+    return_hook_target_entry_t(vmi_pid_t pid, void* plugin, const std::vector < std::unique_ptr < ArgumentPrinter > > &argument_printers, addr_t rip) :
+        pid(pid), plugin(plugin), argument_printers(argument_printers), rip(rip) {}
 };
 
 struct hook_target_view_t

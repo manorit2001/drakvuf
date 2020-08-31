@@ -156,6 +156,7 @@ static event_response_t usermode_return_hook_cb(drakvuf_t drakvuf, drakvuf_trap_
 
     fmt::print(plugin->m_output_format, "apimon", drakvuf, info,
         keyval("Event", fmt::Qstr("api_called")),
+	keyval("Address", fmt::Xval(ret_target->rip)),
         keyval("CalledFrom", fmt::Xval(info->regs->rip)),
         keyval("ReturnValue", fmt::Xval(info->regs->rax)),
         keyval("Arguments", fmt_args),
@@ -199,7 +200,7 @@ static event_response_t usermode_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info* i
         return VMI_EVENT_RESPONSE_NONE;
     }
 
-    return_hook_target_entry_t* ret_target = new (std::nothrow) return_hook_target_entry_t(target->pid, target->plugin, target->argument_printers);
+    return_hook_target_entry_t* ret_target = new (std::nothrow) return_hook_target_entry_t(target->pid, target->plugin, target->argument_printers, info->regs->rip);
 
     if (!ret_target)
     {
