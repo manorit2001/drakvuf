@@ -191,12 +191,38 @@ static event_response_t execute_faulted_cb(drakvuf_t drakvuf, drakvuf_trap_info_
 
     uint64_t tsc = __rdtsc();
 
+    mmvad_info_t mmvad;
+    unicode_string_t* dll_name = nullptr;
+    char *dll_name_str = nullptr;
+    char wtf[] = "(null)";
+
+    addr_t base_va = 0;
+    addr_t end_va = 0;
+
+    if (drakvuf_find_mmvad(drakvuf, info->proc_data.base_addr, info->regs->rip, &mmvad))
+    {
+        dll_name = drakvuf_read_unicode_va(vmi, mmvad.file_name_ptr, 0);
+	dll_name_str = dll_name != nullptr ? (char *)dll_name->contents : nullptr;
+
+	base_va = mmvad.starting_vpn << 12;
+	end_va = ((mmvad.ending_vpn + 1) << 12) - 1;
+    }
+
+    if (!dll_name_str)
+	    dll_name_str = wtf;
+
     jsonfmt::print("execframe", drakvuf, info,
                    keyval("FrameFile", fmt::Qstr(buf)),
                    keyval("FrameVA", fmt::Xval((info->regs->rip >> 12) << 12)),
                    keyval("CR3", fmt::Xval(info->regs->cr3)),
-                   keyval("TSC", fmt::Nval(tsc))
+                   keyval("TSC", fmt::Nval(tsc)),
+		   keyval("VADName", fmt::Qstr(dll_name_str)),
+		   keyval("VADBase", fmt::Xval(base_va)),
+		   keyval("VADEnd", fmt::Xval(end_va))
                    );
+
+    if (dll_name)
+	    vmi_free_unicode_str(dll_name);
 
     frame++;
 
