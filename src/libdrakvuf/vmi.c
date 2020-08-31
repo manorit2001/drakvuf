@@ -665,44 +665,6 @@ event_response_t cr3_cb(vmi_instance_t vmi, vmi_event_t* event)
         PRINT_DEBUG("CR3 cb on vCPU %u: 0x%" PRIx64 "\n", event->vcpu_id, event->reg_event.value);
 #endif
 
-    do {
-        int ret = xen_get_ipt_offset(drakvuf->xen, drakvuf->domID, event->vcpu_id, &drakvuf->ipt_state[event->vcpu_id]);
-
-        if (!ret)
-        {
-            PRINT_DEBUG("Failed to get ipt offset for vcpu %d\n", event->vcpu_id);
-	    break;
-        }
-
-        PRINT_DEBUG("IPT OFFSET VCPU %d CUR %llx LAST %llx\n", event->vcpu_id, (unsigned long long)drakvuf->ipt_state[event->vcpu_id].offset, (unsigned long long)drakvuf->ipt_state[event->vcpu_id].last_offset);
-        ipt_state_t* ipt_state = &drakvuf->ipt_state[event->vcpu_id];
-
-	uint8_t wtf[10] = {0x02, 0x32, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0xAA, 0xBB};
-	uint32_t *lol = (uint32_t *)&wtf[2];
-        uint32_t *omg = (uint32_t *)&wtf[6];
-
-        *omg = (uint32_t)0xC3000000;
-        *lol = (uint32_t)event->reg_event.value;
-
-        if (ipt_state->offset > ipt_state->last_offset)
-        {
-            fwrite(ipt_state->buf + ipt_state->last_offset, ipt_state->offset - ipt_state->last_offset, 1, ipt_state->fd);
-            fwrite(wtf, 10, 1, ipt_state->fd);
-        }
-        else if (ipt_state->offset < ipt_state->last_offset)
-        {
-            fwrite(ipt_state->buf + ipt_state->last_offset, ipt_state->size - ipt_state->last_offset, 1, ipt_state->fd);
-            fwrite(ipt_state->buf, ipt_state->offset, 1, ipt_state->fd);
-            fwrite(wtf, 10, 1, ipt_state->fd);
-        }
-	else
-	{
-            *omg = 0;
-	    *lol = 0;
-	    fwrite(wtf, 10, 1, ipt_state->fd);
-	}
-    } while (0);
-
     event->x86_regs->cr3 = event->reg_event.value;
 
     proc_data_priv_t proc_data;
@@ -739,6 +701,56 @@ event_response_t cr3_cb(vmi_instance_t vmi, vmi_event_t* event)
     trap_info.attached_proc_data.ppid      = attached_proc_data.ppid;
     trap_info.attached_proc_data.userid    = attached_proc_data.userid;
     trap_info.attached_proc_data.tid       = attached_proc_data.tid;
+
+    do {
+        int ret = xen_get_ipt_offset(drakvuf->xen, drakvuf->domID, event->vcpu_id, &drakvuf->ipt_state[event->vcpu_id]);
+
+        if (!ret)
+        {
+            PRINT_DEBUG("Failed to get ipt offset for vcpu %d\n", event->vcpu_id);
+	    break;
+        }
+
+        PRINT_DEBUG("IPT OFFSET VCPU %d CUR %llx LAST %llx\n", event->vcpu_id, (unsigned long long)drakvuf->ipt_state[event->vcpu_id].offset, (unsigned long long)drakvuf->ipt_state[event->vcpu_id].last_offset);
+        ipt_state_t* ipt_state = &drakvuf->ipt_state[event->vcpu_id];
+
+	uint8_t wtf[10] = {0x02, 0x32, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0xAA, 0xBB};
+	uint32_t *lol = (uint32_t *)&wtf[2];
+        uint32_t *omg = (uint32_t *)&wtf[6];
+
+        *omg = (uint32_t)0xC3000000;
+        *lol = (uint32_t)event->reg_event.value;
+
+	uint8_t wtf2[10] = {0x02, 0x32, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0xAA, 0xBB};
+        uint32_t *lol2 = (uint32_t *)&wtf2[2];
+        uint32_t *omg2 = (uint32_t *)&wtf2[6];
+
+	*omg2 = (uint32_t)0x1D000000;
+        *lol2 = (uint32_t)proc_data.tid;
+
+        if (ipt_state->offset > ipt_state->last_offset)
+        {
+            fwrite(ipt_state->buf + ipt_state->last_offset, ipt_state->offset - ipt_state->last_offset, 1, ipt_state->fd);
+            fwrite(wtf, 10, 1, ipt_state->fd);
+	    fwrite(wtf2, 10, 1, ipt_state->fd);
+        }
+        else if (ipt_state->offset < ipt_state->last_offset)
+        {
+            fwrite(ipt_state->buf + ipt_state->last_offset, ipt_state->size - ipt_state->last_offset, 1, ipt_state->fd);
+            fwrite(ipt_state->buf, ipt_state->offset, 1, ipt_state->fd);
+            fwrite(wtf, 10, 1, ipt_state->fd);
+	    fwrite(wtf2, 10, 1, ipt_state->fd);
+        }
+	else
+	{
+            *omg = 0;
+	    *lol = 0;
+	    *omg2 = 0;
+	    *lol2 = 0;
+	    fwrite(wtf, 10, 1, ipt_state->fd);
+	    fwrite(wtf2, 10, 1, ipt_state->fd);
+	}
+    } while (0);
 
     drakvuf->in_callback = 1;
     GSList* loop = drakvuf->cr3;
