@@ -527,6 +527,8 @@ event_response_t pre_mem_cb(vmi_instance_t vmi, vmi_event_t* event)
     return rsp;
 }
 
+int int3_num = 0;
+
 event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t* event)
 {
     UNUSED(vmi);
@@ -593,6 +595,46 @@ event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t* event)
     trap_info.regs = event->x86_regs;
     trap_info.vcpu = event->vcpu_id;
     trap_info.trap_pa = pa;
+    trap_info.int3_num = ++int3_num;
+
+    do {
+        int ret = xen_get_ipt_offset(drakvuf->xen, drakvuf->domID, event->vcpu_id, &drakvuf->ipt_state[event->vcpu_id]);
+
+        if (!ret)
+        {
+            PRINT_DEBUG("Failed to get ipt offset for vcpu %d\n", event->vcpu_id);
+	    break;
+        }
+
+        PRINT_DEBUG("IPT OFFSET VCPU %d CUR %llx LAST %llx\n", event->vcpu_id, (unsigned long long)drakvuf->ipt_state[event->vcpu_id].offset, (unsigned long long)drakvuf->ipt_state[event->vcpu_id].last_offset);
+        ipt_state_t* ipt_state = &drakvuf->ipt_state[event->vcpu_id];
+
+	uint8_t wtf[10] = {0x02, 0x32, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0xAA, 0xBB};
+	uint32_t *lol = (uint32_t *)&wtf[2];
+        uint32_t *omg = (uint32_t *)&wtf[6];
+
+        *omg = (uint32_t)0xCC000000;
+        *lol = (uint32_t)int3_num;
+
+        if (ipt_state->offset > ipt_state->last_offset)
+        {
+            fwrite(ipt_state->buf + ipt_state->last_offset, ipt_state->offset - ipt_state->last_offset, 1, ipt_state->fd);
+            fwrite(wtf, 10, 1, ipt_state->fd);
+        }
+        else if (ipt_state->offset < ipt_state->last_offset)
+        {
+            fwrite(ipt_state->buf + ipt_state->last_offset, ipt_state->size - ipt_state->last_offset, 1, ipt_state->fd);
+            fwrite(ipt_state->buf, ipt_state->offset, 1, ipt_state->fd);
+            fwrite(wtf, 10, 1, ipt_state->fd);
+        }
+	else
+	{
+            *omg = 0;
+	    *lol = 0;
+	    fwrite(wtf, 10, 1, ipt_state->fd);
+	}
+    } while (0);
+
 
     drakvuf_get_current_process_data( drakvuf, &trap_info, &proc_data );
     addr_t attached_proc = drakvuf_get_current_attached_process(drakvuf, &trap_info);
