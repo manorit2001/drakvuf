@@ -183,6 +183,7 @@ static event_response_t execute_faulted_cb(drakvuf_t drakvuf, drakvuf_trap_info_
     if (!fp)
     {
         printf("/tmp/frames doesnt exist?\n");
+        drakvuf_release_vmi(drakvuf);
 	return VMI_EVENT_RESPONSE_NONE;
     }
 

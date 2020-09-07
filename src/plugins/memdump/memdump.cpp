@@ -151,6 +151,7 @@ static void save_file_metadata(const drakvuf_trap_info_t* info,
     }
 
     json_object_object_add(jobj, "DataFileName", json_object_new_string(data_file_name));
+    json_object_object_add(jobj, "CR3", json_object_new_string_fmt("0x%" PRIx64, info->regs->cr3));
 
     fprintf(fp, "%s\n", json_object_get_string(jobj));
     fclose(fp);
