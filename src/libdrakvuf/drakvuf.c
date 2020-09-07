@@ -226,6 +226,7 @@ bool drakvuf_init(drakvuf_t* drakvuf, const char* domain, const char* json_kerne
         if (!ret)
         {
             fprintf(stderr, "Failed to enable IPT for vcpu %d\n", i);
+            fprintf(stderr, "Make sure your processor supports IPT and you have processor_trace_buf_kb=... in VM's config file\n");
         }
     }
 
