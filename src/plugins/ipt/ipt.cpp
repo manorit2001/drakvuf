@@ -118,6 +118,11 @@
 std::set<uint64_t> gfns;
 
 
+struct wtf_struct {
+    ipt* plugin;
+    addr_t rip;
+};
+
 template<typename T>
 struct access_fault_result_t: public call_result_t<T>
 {
@@ -163,12 +168,13 @@ static event_response_t catch_frame_write(drakvuf_t drakvuf, drakvuf_trap_info_t
 
 static event_response_t execute_faulted_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
     //ipt* plugin = (ipt *)info->trap->data;
+    struct wtf_struct *wtf_inst = (struct wtf_struct *)info->trap->data;
     vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
     access_context_t ctx =
     {
         .translate_mechanism = VMI_TM_PROCESS_DTB,
         .dtb = info->regs->cr3,
-        .addr = (info->regs->rip >> 12) << 12
+        .addr = wtf_inst->rip
     };
 
     size_t bytes_read = 0;
@@ -200,7 +206,7 @@ static event_response_t execute_faulted_cb(drakvuf_t drakvuf, drakvuf_trap_info_
     addr_t base_va = 0;
     addr_t end_va = 0;
 
-    if (drakvuf_find_mmvad(drakvuf, info->proc_data.base_addr, info->regs->rip, &mmvad))
+    if (drakvuf_find_mmvad(drakvuf, info->proc_data.base_addr, wtf_inst->rip, &mmvad))
     {
         dll_name = drakvuf_read_unicode_va(vmi, mmvad.file_name_ptr, 0);
 	dll_name_str = dll_name != nullptr ? (char *)dll_name->contents : nullptr;
@@ -214,7 +220,7 @@ static event_response_t execute_faulted_cb(drakvuf_t drakvuf, drakvuf_trap_info_
 
     jsonfmt::print("execframe", drakvuf, info,
                    keyval("FrameFile", fmt::Qstr(buf)),
-                   keyval("FrameVA", fmt::Xval((info->regs->rip >> 12) << 12)),
+                   keyval("FrameVA", fmt::Xval(wtf_inst->rip)),
                    keyval("CR3", fmt::Xval(info->regs->cr3)),
                    keyval("TSC", fmt::Nval(tsc)),
 		   keyval("VADName", fmt::Qstr(dll_name_str)),
@@ -258,15 +264,18 @@ static event_response_t mm_access_fault_return_hook_cb(drakvuf_t drakvuf, drakvu
                 return VMI_EVENT_RESPONSE_NONE;
         }
 
-        PRINT_DEBUG("[MQWTF] MmAccessFault(%d, %lx) => %lx\n", info->proc_data.pid, data->fault_va, p_info.paddr);
+        printf("[MQWTF] MmAccessFault(%d, %lx) => %lx\n", info->proc_data.pid, data->fault_va, p_info.paddr);
 
+        struct wtf_struct *wtf_inst = (struct wtf_struct *)malloc(sizeof(struct wtf_struct));
+	wtf_inst->plugin = plugin;
+	wtf_inst->rip = ((data->fault_va >> 12) << 12);
 	drakvuf_trap_t *wtf_trap = (drakvuf_trap_t *)malloc(sizeof(drakvuf_trap_t));
 
 	wtf_trap->type = MEMACCESS;
 	wtf_trap->memaccess.gfn = p_info.paddr >> 12;
 	wtf_trap->memaccess.type = PRE;
 	wtf_trap->memaccess.access = VMI_MEMACCESS_X;
-	wtf_trap->data = plugin;
+	wtf_trap->data = wtf_inst; // FIXME memleak
 	wtf_trap->cb = execute_faulted_cb;
 	wtf_trap->name = nullptr;
 
@@ -274,12 +283,12 @@ static event_response_t mm_access_fault_return_hook_cb(drakvuf_t drakvuf, drakvu
 //        printf("[MQWTF] Ignore paddr 29430\n");
 //        else
 
-        if (gfns.find(p_info.paddr >> 12) == gfns.end())
+//        if (gfns.find(p_info.paddr >> 12) == gfns.end())
             drakvuf_add_trap(drakvuf, wtf_trap);
-        else
-            PRINT_DEBUG("[MQWTF] Don't trap X on GFN 0x%lx was already trapped\n", p_info.paddr >> 12);
+//        else
+//            PRINT_DEBUG("[MQWTF] Don't trap X on GFN 0x%lx was already trapped\n", p_info.paddr >> 12);
 
-	gfns.insert(p_info.paddr >> 12);
+	//gfns.insert(p_info.paddr >> 12);
 	PRINT_DEBUG("[MQWTF] Trap X on GFN 0x%lx\n", p_info.paddr >> 12);
 
 	drakvuf_release_vmi(drakvuf);
