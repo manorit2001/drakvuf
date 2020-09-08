@@ -133,41 +133,7 @@ struct access_fault_result_t: public call_result_t<T>
 
 int frame = 0;
 
-/* static event_response_t execute_faulted_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info);
-
-static event_response_t catch_frame_write(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
-    ipt* plugin = (ipt *)info->trap->data;
-    vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
-
-    page_info_t p_info = {};
-
-    if (VMI_SUCCESS != vmi_pagetable_lookup_extended(vmi, info->regs->cr3, info->regs->rip, &p_info)) {
-        PRINT_DEBUG("[MEMDUMP] failed to lookup page info 2\n");
-        drakvuf_release_vmi(drakvuf);
-        return VMI_EVENT_RESPONSE_NONE;
-    }
-
-    drakvuf_trap_t *wtf_trap = (drakvuf_trap_t *)malloc(sizeof(drakvuf_trap_t));
-
-    wtf_trap->type = MEMACCESS;
-    wtf_trap->memaccess.gfn = p_info.paddr;
-    wtf_trap->memaccess.type = PRE;
-    wtf_trap->memaccess.access = VMI_MEMACCESS_X;
-    wtf_trap->data = plugin;
-    wtf_trap->cb = execute_faulted_cb;
-    wtf_trap->name = nullptr;
-    drakvuf_add_trap(drakvuf, wtf_trap);
-
-    drakvuf_release_vmi(drakvuf);
-
-    drakvuf_remove_trap(drakvuf, info->trap, nullptr);
-
-    printf("flip trap to X\n");
-    return VMI_EVENT_RESPONSE_NONE;
-} */
-
 static event_response_t execute_faulted_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
-    //ipt* plugin = (ipt *)info->trap->data;
     struct wtf_struct *wtf_inst = (struct wtf_struct *)info->trap->data;
     vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
     access_context_t ctx =
@@ -190,7 +156,7 @@ static event_response_t execute_faulted_cb(drakvuf_t drakvuf, drakvuf_trap_info_
     {
         printf("/tmp/frames doesnt exist?\n");
         drakvuf_release_vmi(drakvuf);
-	return VMI_EVENT_RESPONSE_NONE;
+        return VMI_EVENT_RESPONSE_NONE;
     }
 
     fwrite(pagebuf, 1, bytes_read, fp);
@@ -209,27 +175,28 @@ static event_response_t execute_faulted_cb(drakvuf_t drakvuf, drakvuf_trap_info_
     if (drakvuf_find_mmvad(drakvuf, info->proc_data.base_addr, wtf_inst->rip, &mmvad))
     {
         dll_name = drakvuf_read_unicode_va(vmi, mmvad.file_name_ptr, 0);
-	dll_name_str = dll_name != nullptr ? (char *)dll_name->contents : nullptr;
+        dll_name_str = dll_name != nullptr ? (char *)dll_name->contents : nullptr;
 
-	base_va = mmvad.starting_vpn << 12;
-	end_va = ((mmvad.ending_vpn + 1) << 12) - 1;
+        base_va = mmvad.starting_vpn << 12;
+        end_va = ((mmvad.ending_vpn + 1) << 12) - 1;
     }
 
     if (!dll_name_str)
-	    dll_name_str = wtf;
+        dll_name_str = wtf;
 
     jsonfmt::print("execframe", drakvuf, info,
-                   keyval("FrameFile", fmt::Qstr(buf)),
-                   keyval("FrameVA", fmt::Xval(wtf_inst->rip)),
-                   keyval("CR3", fmt::Xval(info->regs->cr3)),
-                   keyval("TSC", fmt::Nval(tsc)),
-		   keyval("VADName", fmt::Qstr(dll_name_str)),
-		   keyval("VADBase", fmt::Xval(base_va)),
-		   keyval("VADEnd", fmt::Xval(end_va))
-                   );
+            keyval("FrameFile", fmt::Qstr(buf)),
+            keyval("FrameVA", fmt::Xval(wtf_inst->rip)),
+            keyval("TrapPA", fmt::Xval(info->trap_pa)),
+            keyval("CR3", fmt::Xval(info->regs->cr3)),
+            keyval("TSC", fmt::Nval(tsc)),
+            keyval("VADName", fmt::Qstr(dll_name_str)),
+            keyval("VADBase", fmt::Xval(base_va)),
+            keyval("VADEnd", fmt::Xval(end_va))
+            );
 
     if (dll_name)
-	    vmi_free_unicode_str(dll_name);
+        vmi_free_unicode_str(dll_name);
 
     frame++;
 
@@ -256,17 +223,21 @@ static event_response_t mm_access_fault_return_hook_cb(drakvuf_t drakvuf, drakvu
 
 	ipt* plugin = data->plugin();
 
-	vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
-        page_info_t p_info = {};
-        if (VMI_SUCCESS != vmi_pagetable_lookup_extended(vmi, info->regs->cr3, data->fault_va, &p_info)) {
-                PRINT_DEBUG("[MEMDUMP] failed to lookup page info\n");
-		drakvuf_release_vmi(drakvuf);
-                return VMI_EVENT_RESPONSE_NONE;
-        }
+    vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
+    page_info_t p_info = {};
+    if (VMI_SUCCESS != vmi_pagetable_lookup_extended(vmi, info->regs->cr3, data->fault_va, &p_info)) {
+        PRINT_DEBUG("[MEMDUMP] failed to lookup page info\n");
+        drakvuf_release_vmi(drakvuf);
+        return VMI_EVENT_RESPONSE_NONE;
+    }
 
-        printf("[MQWTF] MmAccessFault(%d, %lx) => %lx\n", info->proc_data.pid, data->fault_va, p_info.paddr);
+    jsonfmt::print("pagefault", drakvuf, info,
+                   keyval("CR3", fmt::Xval(info->regs->cr3)),
+                   keyval("VA", fmt::Xval(data->fault_va)),
+                   keyval("PA", fmt::Xval(p_info.paddr))
+    );
 
-        struct wtf_struct *wtf_inst = (struct wtf_struct *)malloc(sizeof(struct wtf_struct));
+    struct wtf_struct *wtf_inst = (struct wtf_struct *)malloc(sizeof(struct wtf_struct));
 	wtf_inst->plugin = plugin;
 	wtf_inst->rip = ((data->fault_va >> 12) << 12);
 	drakvuf_trap_t *wtf_trap = (drakvuf_trap_t *)malloc(sizeof(drakvuf_trap_t));
@@ -279,16 +250,7 @@ static event_response_t mm_access_fault_return_hook_cb(drakvuf_t drakvuf, drakvu
 	wtf_trap->cb = execute_faulted_cb;
 	wtf_trap->name = nullptr;
 
-//	if ((p_info.paddr >> 12) == 0x29430)
-//        printf("[MQWTF] Ignore paddr 29430\n");
-//        else
-
-//        if (gfns.find(p_info.paddr >> 12) == gfns.end())
-            drakvuf_add_trap(drakvuf, wtf_trap);
-//        else
-//            PRINT_DEBUG("[MQWTF] Don't trap X on GFN 0x%lx was already trapped\n", p_info.paddr >> 12);
-
-	//gfns.insert(p_info.paddr >> 12);
+    drakvuf_add_trap(drakvuf, wtf_trap);
 	PRINT_DEBUG("[MQWTF] Trap X on GFN 0x%lx\n", p_info.paddr >> 12);
 
 	drakvuf_release_vmi(drakvuf);
