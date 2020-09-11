@@ -217,8 +217,8 @@ int annotate_ipt(drakvuf_t drakvuf, vmi_event_t* event, uint32_t* payloads, size
     }
 
     uint8_t ptwrite_packet[10] = {0x02, 0x32,};
-    uint32_t *ptwrite_low = (uint32_t*)&ptwrite_packet[2];
-    uint32_t *ptwrite_high = (uint32_t*)&ptwrite_packet[6];
+    uint32_t* ptwrite_low = (uint32_t*)&ptwrite_packet[2];
+    uint32_t* ptwrite_high = (uint32_t*)&ptwrite_packet[6];
 
     for (size_t i = 0; i < num_payloads; i++)
     {
@@ -660,7 +660,8 @@ event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t* event)
     else
         trap_info.int3_num = 0;
 
-    uint32_t payloads[2] = {
+    uint32_t payloads[2] =
+    {
         PTW_EVENT_ID, int3_num
     };
 
@@ -774,7 +775,8 @@ event_response_t cr3_cb(vmi_instance_t vmi, vmi_event_t* event)
     trap_info.attached_proc_data.userid    = attached_proc_data.userid;
     trap_info.attached_proc_data.tid       = attached_proc_data.tid;
 
-    uint32_t payloads[4] = {
+    uint32_t payloads[4] =
+    {
         PTW_CURRENT_CR3, event->reg_event.value,
         PTW_CURRENT_TID, proc_data.tid
     };

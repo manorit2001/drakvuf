@@ -306,4 +306,3 @@ ipt::ipt(drakvuf_t drakvuf, const ipt_config* c, output_format_t output)
         throw -1;
     }
 }
-

@@ -346,12 +346,12 @@ int xen_enable_ipt(xen_interface_t* xen, domid_t domID, int vcpu, ipt_state_t* i
     }
 
     ipt_state->fres = xenforeignmemory_map_resource(
-                xen->fmem, domID, XENMEM_resource_vmtrace_buf,
-                /* vcpu: */ vcpu,
-                /* frame: */ 0,
-                /* num_frames: */ ipt_state->size >> XC_PAGE_SHIFT,
-                (void **)&ipt_state->buf,
-                PROT_READ, 0);
+                          xen->fmem, domID, XENMEM_resource_vmtrace_buf,
+                          /* vcpu: */ vcpu,
+                          /* frame: */ 0,
+                          /* num_frames: */ ipt_state->size >> XC_PAGE_SHIFT,
+                          (void **)&ipt_state->buf,
+                          PROT_READ, 0);
 
     if (!ipt_state->buf)
     {
@@ -372,7 +372,7 @@ int xen_get_ipt_offset(xen_interface_t* xen, domid_t domID, int vcpu, ipt_state_
     if (rc == ENODATA)
     {
         fprintf(stderr, "xc_vmtrace_pt_get_offset returned ENODATA\n");
-	ipt_state->last_offset = ipt_state->offset;
+        ipt_state->last_offset = ipt_state->offset;
         return 1;
     }
     else if (rc)
@@ -390,25 +390,27 @@ int xen_disable_ipt(xen_interface_t* xen, domid_t domID, int vcpu, ipt_state_t* 
 {
     int rc = xenforeignmemory_unmap_resource(xen->fmem, ipt_state->fres);
 
-    if (rc) {
+    if (rc)
+    {
         fprintf(stderr, "Failed to unmap resource\n");
         return 0;
     }
 
     rc = xenforeignmemory_close(xen->fmem);
 
-    if (rc) {
+    if (rc)
+    {
         fprintf(stderr, "Failed to close fmem\n");
         return 0;
     }
 
     rc = xc_vmtrace_pt_disable(xen->xc, domID, vcpu);
 
-    if (rc) {
+    if (rc)
+    {
         fprintf(stderr, "Failed to call xc_vmtrace_pt_disable\n");
         return 0;
     }
 
     return 1;
 }
-
