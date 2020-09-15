@@ -378,6 +378,16 @@ if test x$plugin_rpcmon = xyes; then
   AC_DEFINE_UNQUOTED(ENABLE_PLUGIN_RPCMON, 1, "")
 fi
 
+AC_ARG_ENABLE([plugin_ipt],
+  [AS_HELP_STRING([--disable-plugin-ipt],
+    [Enable processor trace plugin @<:@yes@:>@])],
+  [plugin_ipt="$enableval"],
+  [plugin_ipt="yes"])
+AM_CONDITIONAL([PLUGIN_IPT], [test x$plugin_ipt = xyes])
+if test x$plugin_ipt = xyes; then
+  AC_DEFINE_UNQUOTED(ENABLE_PLUGIN_IPT, 1, "")
+fi
+
 #####################################################
 
 AC_ARG_ENABLE([repl],
@@ -652,6 +662,7 @@ MEMDump:      $plugin_memdump
 ProcDump:     $plugin_procdump
 APIMon:       $plugin_apimon
 RPCMon:       $plugin_rpcmon
+IPT:          $plugin_ipt
 -------------------------------------------------------------------------------
 Deprecated Plugins
 WMIMon:       $plugin_wmimon
