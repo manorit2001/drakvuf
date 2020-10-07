@@ -131,6 +131,182 @@
 #include "memdump.h"
 #include "private.h"
 
+
+
+bool ssl_encrypt_packet_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info, memdump* plugin)
+{
+    // SECURITY_STATUS WINAPI SslEncryptPacket(
+    //   _In_    NCRYPT_PROV_HANDLE hSslProvider,
+    //   _Inout_ NCRYPT_KEY_HANDLE  hKey,
+    //   _In_    PBYTE              *pbInput,
+    //   _In_    DWORD              cbInput,
+    //   _Out_   PBYTE              pbOutput,
+    //   _In_    DWORD              cbOutput,
+    //   _Out_   DWORD              *pcbResult,
+    //   _In_    ULONGLONG          SequenceNumber,
+    //   _In_    DWORD              dwContentType,
+    //   _In_    DWORD              dwFlags
+    // );
+    fprintf(stderr, "[KOSTUS][>] ssl_encrypt_packet_cb()\n");
+
+    addr_t ptx_addr = drakvuf_get_function_argument(drakvuf, info, 3);
+    uint64_t ptx_len = drakvuf_get_function_argument(drakvuf, info, 4);
+
+    char *buf = (char*)malloc(ptx_len);
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_PROCESS_DTB,
+        .dtb = info->regs->cr3,
+        .addr = ptx_addr
+    };
+    vmi_lock_guard lg(drakvuf);
+    if (VMI_SUCCESS != vmi_read(lg.vmi, &ctx, ptx_len, buf, nullptr)) {
+        fprintf(stderr, "[KOSTUS][!] vmi_read failed\n");
+        return 0;
+    }
+
+    // Print buf in hex format
+    fprintf(stderr, "[KOSTUS][i] ptx (%lu bytes): \n", ptx_len);
+    for (uint64_t i = 0; i < ptx_len; i++) {
+        fprintf(stderr, "\\x%02x", buf[i]);
+    }
+    fprintf(stderr, "\n");
+
+    fprintf(stderr, "[KOSTUS][<] ssl_encrypt_packet_cb()\n");
+    return 1;
+}
+
+template<typename T>
+struct ssl_decrypt_packet_params_t: public call_result_t<T>
+{
+    addr_t ssl_provider_handle_addr;
+    addr_t key_handle_addr;
+    addr_t pb_input;
+    uint32_t cb_input;
+    addr_t pb_output;
+    uint32_t cb_output;
+    addr_t pcb_result;
+    uint64_t sequence_number;
+    uint32_t flags;
+
+    ssl_decrypt_packet_params_t(T* src) : call_result_t<T>(src), ssl_provider_handle_addr(), key_handle_addr(), pb_input(), cb_input(), pb_output(), cb_output(), pcb_result(), sequence_number(), flags() {}
+};
+
+
+static event_response_t ssl_decrypt_packet_ret_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
+{
+    fprintf(stderr, "[KOSTUS][>] ssl_decrypt_packet_ret_cb()\n");
+
+    auto params = get_trap_params<memdump, ssl_decrypt_packet_params_t<memdump>>(info);
+    auto plugin = get_trap_plugin<memdump, ssl_decrypt_packet_params_t<memdump>>(info);
+    if (!params || !plugin) {
+        fprintf(stderr, "[KOSTUS][!] !params || !plugin\n");
+        return VMI_EVENT_RESPONSE_NONE;
+    }
+
+    if (!params->verify_result_call_params(info, drakvuf_get_current_thread(drakvuf, info))) {
+        fprintf(stderr, "[KOSTUS][!] verify_result_call_params failed\n");
+        return VMI_EVENT_RESPONSE_NONE;
+    }
+    // [KOSTUS] dziala do tego miejsca
+
+    plugin->destroy_trap(drakvuf, info->trap);
+    // [KOSTUS] tu juz nie dziala
+
+    // access_context_t ctx = {
+    //     .translate_mechanism = VMI_TM_PROCESS_DTB,
+    //     .dtb = info->regs->cr3,
+    //     .addr = params->pcb_result
+    // };
+    // // vmi_lock_guard lg(drakvuf);
+    // vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
+
+    // uint32_t ptx_length = 0;
+    // if (VMI_SUCCESS != vmi_read(vmi, &ctx, sizeof(ptx_length), &ptx_length, nullptr)) {
+    //     fprintf(stderr, "[KOSTUS][!] failed to read ptx_length\n");
+    //     drakvuf_release_vmi(drakvuf);
+    //     fprintf(stderr, "[KOSTUS][<] ssl_decrypt_packet_ret_cb()\n");
+    // }
+    // fprintf(stderr, "[KOSTUS][i] ptx_length: 0x%x\n", ptx_length);
+
+    // char *ptx = (char*) malloc(ptx_length);
+    // if (!ptx) {
+    //     fprintf(stderr, "[KOSTUS][i] malloc failed\n");
+    //     drakvuf_release_vmi(drakvuf);
+    //     fprintf(stderr, "[KOSTUS][<] ssl_decrypt_packet_ret_cb()\n");
+    // }
+    // ctx.addr = params->pb_output;
+    // if (VMI_SUCCESS != vmi_read(vmi, &ctx, ptx_length, ptx, nullptr)) {
+    //     fprintf(stderr, "[KOSTUS][!] failed to read ptx\n");
+    //     drakvuf_release_vmi(drakvuf);
+    //     fprintf(stderr, "[KOSTUS][<] ssl_decrypt_packet_ret_cb()\n");
+    // }
+    // drakvuf_release_vmi(drakvuf);
+
+    // fprintf(stderr, "[KOSTUS] ptx: ");
+    // for (uint32_t i = 0; i < ptx_length; i++) {
+    //     fprintf(stderr, "\\x%02x", ptx[i]);
+    // }
+    // fprintf(stderr, "\n");
+
+
+    fprintf(stderr, "[KOSTUS][<] ssl_decrypt_packet_ret_cb()\n");
+    return VMI_EVENT_RESPONSE_NONE;
+}
+
+
+bool ssl_decrypt_packet_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
+{
+    // SECURITY_STATUS WINAPI SslDecryptPacket(
+    // _In_    NCRYPT_PROV_HANDLE hSslProvider,
+    // _Inout_ NCRYPT_KEY_HANDLE  hKey,
+    // _In_    PBYTE              *pbInput,
+    // _In_    DWORD              cbInput,
+    // _Out_   PBYTE              pbOutput,
+    // _In_    DWORD              cbOutput,
+    // _Out_   DWORD              *pcbResult,
+    // _In_    ULONGLONG          SequenceNumber,
+    // _In_    DWORD              dwFlags
+    // );
+    fprintf(stderr, "[KOSTUS][>] ssl_decrypt_packet_cb()\n");
+
+    auto plugin = get_trap_plugin<memdump>(info);
+    if (!plugin) {
+        fprintf(stderr, "[KOSTUS][!] get_trap_plugin failed\n");
+        return 0;
+    }
+    auto trap = plugin->register_trap<memdump, ssl_decrypt_packet_params_t<memdump>>(
+        drakvuf,
+        info,
+        plugin,
+        ssl_decrypt_packet_ret_cb,
+        breakpoint_by_dtb_searcher());
+    if (!trap) {
+        fprintf(stderr, "[KOSTUS][!] register_trap failed\n");
+        return 0;
+    }
+
+    auto params = get_trap_params<memdump, ssl_decrypt_packet_params_t<memdump>>(trap);
+    if (!params) {
+        fprintf(stderr, "[KOSTUS][!] get_trap_params failed\n");
+        plugin->destroy_trap(drakvuf, trap);
+        return 0;
+    }
+    params->set_result_call_params(info, drakvuf_get_current_thread(drakvuf, info));
+    params->ssl_provider_handle_addr = drakvuf_get_function_argument(drakvuf, info, 1);
+    params->key_handle_addr = drakvuf_get_function_argument(drakvuf, info, 2);
+    params->pb_input = drakvuf_get_function_argument(drakvuf, info, 3);
+    params->cb_input = drakvuf_get_function_argument(drakvuf, info, 4);
+    params->pb_output = drakvuf_get_function_argument(drakvuf, info, 5);
+    params->cb_output = drakvuf_get_function_argument(drakvuf, info, 6);
+    params->pcb_result = drakvuf_get_function_argument(drakvuf, info, 7);
+    params->sequence_number = drakvuf_get_function_argument(drakvuf, info, 8);
+    params->flags = drakvuf_get_function_argument(drakvuf, info, 9);
+
+    fprintf(stderr, "[KOSTUS][<] ssl_decrypt_packet_cb()\n");
+    return 1;
+}
+
+
 static event_response_t usermode_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info* info)
 {
     hook_target_entry_t* target = (hook_target_entry_t*)info->trap->data;
@@ -141,6 +317,14 @@ static event_response_t usermode_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info* i
 
     if (target->target_name == "AssemblyNative::LoadImage")
         dotnet_assembly_native_load_image_cb(drakvuf, info, (memdump*)target->plugin);
+
+
+    if (target->target_name == "SslEncryptPacket")
+        ssl_encrypt_packet_cb(drakvuf, info, (memdump*)target->plugin);
+    if (target->target_name == "SslDecryptPacket")
+        ssl_decrypt_packet_cb(drakvuf, info);
+
+    return VMI_EVENT_RESPONSE_NONE;
 
     dump_from_stack(drakvuf, info, (memdump*)target->plugin);
     return VMI_EVENT_RESPONSE_NONE;
@@ -197,6 +381,10 @@ void memdump::userhook_init(drakvuf_t drakvuf, const memdump_config* c, output_f
             ++it;
     }
 
+    for (auto it2 = std::begin(this->wanted_hooks); it2 != std::end(this->wanted_hooks); it2++) {
+        fprintf(stderr, "[KOSTUS] Setting hook for: %s\n", it2->function_name.c_str());
+    }
+
     if (this->wanted_hooks.empty())
     {
         // don't load this part of plugin if there is nothing to do
@@ -247,6 +435,7 @@ void memdump::setup_dotnet_hooks(drakvuf_t drakvuf, const char* dll_name, const 
     entry.log_strategy = "log+stack";
     this->wanted_hooks.push_back(std::move(entry));
 }
+
 
 void memdump::userhook_destroy()
 {
