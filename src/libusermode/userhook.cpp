@@ -413,7 +413,7 @@ static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap
     return VMI_EVENT_RESPONSE_NONE;
 }
 
-static event_response_t perform_hooking(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook* plugin, dll_t* dll_meta)
+static event_response_t perform_hooking(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook_plugin* plugin, dll_t* dll_meta)
 {
     bool was_hooked = dll_meta->is_hooked;
     event_response_t ret = internal_perform_hooking(drakvuf, info, plugin, dll_meta);
@@ -422,7 +422,7 @@ static event_response_t perform_hooking(drakvuf_t drakvuf, drakvuf_trap_info* in
     {
         for (auto& reg : plugin->plugins)
         {
-            reg.post_cb(drakvuf, dll_meta, targets, reg.extra);
+            reg.post_cb(drakvuf, dll_meta, dll_meta->hooks, reg.extra);
         }
     }
 
@@ -443,7 +443,7 @@ static event_response_t protect_virtual_memory_hook_cb(drakvuf_t drakvuf, drakvu
     if (process_handle != ~0ULL)
         return VMI_EVENT_RESPONSE_NONE;
 
-    auto plugin = get_trap_plugin<userhook>(info);
+    auto plugin = get_trap_plugin<userhook_plugin>(info);
 
     dll_t* dll_meta = get_pending_dll(drakvuf, info, plugin);
 
@@ -480,7 +480,7 @@ static event_response_t protect_virtual_memory_hook_cb(drakvuf_t drakvuf, drakvu
  */
 static event_response_t map_view_of_section_ret_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 {
-    auto plugin = get_trap_plugin<userhook>(info);
+    auto plugin = get_trap_plugin<userhook_plugin>(info);
     auto params = get_trap_params<map_view_of_section_result_t>(info);
 
     if (!params->verify_result_call_params(info, drakvuf_get_current_thread(drakvuf, info)))
@@ -518,7 +518,7 @@ static event_response_t map_view_of_section_ret_cb(drakvuf_t drakvuf, drakvuf_tr
 
 static event_response_t map_view_of_section_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 {
-    auto plugin = get_trap_plugin<userhook>(info);
+    auto plugin = get_trap_plugin<userhook_plugin>(info);
     auto trap = plugin->register_trap<map_view_of_section_result_t>(
                     info,
                     map_view_of_section_ret_cb,
@@ -548,7 +548,7 @@ static event_response_t system_service_handler_hook_cb(drakvuf_t drakvuf, drakvu
 {
     PRINT_DEBUG("[USERHOOK] Entered system service handler\n");
 
-    auto plugin = get_trap_plugin<userhook>(info);
+    auto plugin = get_trap_plugin<userhook_plugin>(info);
 
     uint32_t thread_id;
 
@@ -611,7 +611,7 @@ static event_response_t system_service_handler_hook_cb(drakvuf_t drakvuf, drakvu
  */
 static event_response_t terminate_process_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 {
-    auto plugin = get_trap_plugin<userhook>(info);
+    auto plugin = get_trap_plugin<userhook_plugin>(info);
 
     auto vec_it = plugin->loaded_dlls.find(info->regs->cr3);
 
@@ -637,7 +637,7 @@ static event_response_t terminate_process_hook_cb(drakvuf_t drakvuf, drakvuf_tra
 
 static event_response_t copy_on_write_ret_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 {
-    auto plugin = get_trap_plugin<userhook>(info);
+    auto plugin = get_trap_plugin<userhook_plugin>(info);
     auto params = get_trap_params<copy_on_write_result_t>(info);
 
     if (!params->verify_result_call_params(info, drakvuf_get_current_thread(drakvuf, info)))
@@ -683,7 +683,7 @@ static event_response_t copy_on_write_ret_cb(drakvuf_t drakvuf, drakvuf_trap_inf
 
 static event_response_t copy_on_write_handler(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 {
-    auto plugin = get_trap_plugin<userhook>(info);
+    auto plugin = get_trap_plugin<userhook_plugin>(info);
 
     addr_t vaddr = drakvuf_get_function_argument(drakvuf, info, 1);
     addr_t pte = drakvuf_get_function_argument(drakvuf, info, 2);
