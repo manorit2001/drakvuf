@@ -201,7 +201,7 @@ public:
     bool is_hooked;
 
 private:
-    std::vector<hook_target_entry_t> targets;
+    std::vector<userhook*> hooks;
 
     // internal, for page faults
     addr_t pf_current_addr;

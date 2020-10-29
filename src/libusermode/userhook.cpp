@@ -209,7 +209,7 @@ dll_t* create_dll_meta(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook* plu
         reg.pre_cb(drakvuf, &dll_meta, reg.extra);
     }
 
-    if (dll_meta.targets.empty())
+    if (dll_meta.hooks.empty())
     {
         return nullptr;
     }
@@ -337,7 +337,7 @@ static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap
     }
 
     // export info should be available, try hooking DLLs
-    for (auto& target : dll_meta->targets)
+    for (auto& target : dll_meta->hooks)
     {
         if (target.state == HOOK_FIRST_TRY || target.state == HOOK_PAGEFAULT_RETRY)
         {
@@ -420,16 +420,9 @@ static event_response_t perform_hooking(drakvuf_t drakvuf, drakvuf_trap_info* in
 
     if (!was_hooked && dll_meta->v.is_hooked)
     {
-        std::vector<hook_target_view_t> targets;
-
-        for (auto& target : dll_meta->targets)
-        {
-            targets.emplace_back(target.target_name, target.offset, target.state);
-        }
-
         for (auto& reg : plugin->plugins)
         {
-            reg.post_cb(drakvuf, (const dll_view_t*)dll_meta, targets, reg.extra);
+            reg.post_cb(drakvuf, dll_meta, targets, reg.extra);
         }
     }
 
@@ -627,13 +620,13 @@ static event_response_t terminate_process_hook_cb(drakvuf_t drakvuf, drakvuf_tra
 
     for (auto& it : vec_it->second)
     {
-        for (auto& target : it.targets)
+        for (auto& hook : it.hooks)
         {
-            if (target.state == HOOK_OK)
+            if (hook.state == HOOK_OK)
             {
                 PRINT_DEBUG("[USERHOOK] Erased trap for pid %d %s\n", info->proc_data.pid,
-                            target.target_name.c_str());
-                drakvuf_remove_trap(drakvuf, target.trap, NULL);
+                            hook.target_name.c_str());
+                drakvuf_remove_trap(drakvuf, hook.trap, NULL);
             }
         }
     }
@@ -707,17 +700,17 @@ static event_response_t copy_on_write_handler(drakvuf_t drakvuf, drakvuf_trap_in
         }
     }
 
-    std::vector<userhook*> hooks;
+    std::vector<userhook*> wanted_hooks;
     for (auto& dll : plugin->loaded_dlls[info->regs->cr3])
     {
-        for (auto& hook : dll.targets)
+        for (auto& hook : dll.hooks)
         {
             if (hook.state == HOOK_OK)
             {
                 addr_t hook_addr = hook.trap->breakpoint.addr;
                 if (hook_addr >> 12 == pa >> 12)
                 {
-                    hooks.push_back(&hook);
+                    wanted_hooks.push_back(&hook);
                 }
             }
         }
@@ -726,9 +719,9 @@ static event_response_t copy_on_write_handler(drakvuf_t drakvuf, drakvuf_trap_in
     PRINT_DEBUG("[USERHOOK] copy on write called: vaddr: %llx pte: %llx, pid: %d, cr3: %llx\n", (unsigned long long)vaddr, (unsigned long long)pte, info->proc_data.pid, (unsigned long long)info->regs->cr3);
     PRINT_DEBUG("[USERHOOK] old CoW PA: %llx\n", (unsigned long long)pa);
 
-    if (!hooks.empty())
+    if (!wanted_hooks.empty())
     {
-        PRINT_DEBUG("USERHOOK] Found %zu hooks on CoW page, registering return trap\n", hooks.size());
+        PRINT_DEBUG("USERHOOK] Found %zu hooks on CoW page, registering return trap\n", wanted_hooks.size());
 
         auto trap = plugin->register_trap<copy_on_write_result_t>(
                         info,
@@ -744,7 +737,7 @@ static event_response_t copy_on_write_handler(drakvuf_t drakvuf, drakvuf_trap_in
         params->vaddr = vaddr;
         params->pte = pte;
         params->old_cow_pa = pa;
-        params->hooks = hooks;
+        params->hooks = wanted_hooks;
     }
 
     return VMI_EVENT_RESPONSE_NONE;
@@ -794,9 +787,9 @@ usermode_reg_status_t userhook::init(drakvuf_t drakvuf)
 void userhook::request_usermode_hook(drakvuf_t drakvuf, const dll_t* dll, const userhook_request& target, callback_t callback, void* extra)
 {
     if (target->type == HOOK_BY_NAME)
-        p_dll->targets.emplace_back(target.function_name, target.clsid, callback, extra);
+        p_dll->hooks.emplace_back(target.function_name, target.clsid, callback, extra);
     else // HOOK_BY_OFFSET
-        p_dll->targets.emplace_back(target.function_name, target.clsid, target.offset, callback, extra);
+        p_dll->hooks.emplace_back(target.function_name, target.clsid, target.offset, callback, extra);
 }
 
 void userhook::register_plugin(drakvuf_t drakvuf, usermode_cb_registration reg)
@@ -810,11 +803,11 @@ userhook::~userhook()
     {
         for (auto& loaded_dll : it.second)
         {
-            for (auto& target : loaded_dll.targets)
+            for (auto& hook : loaded_dll.hooks)
             {
-                if (target.state == HOOK_OK)
+                if (hook.state == HOOK_OK)
                 {
-                    delete target.trap;
+                    delete hook.trap;
                 }
             }
         }
