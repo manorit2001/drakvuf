@@ -184,9 +184,8 @@ struct userhook
     {}
 };
 
-class dll_t
+struct dll_t
 {
-public:
     // relevant while loading
     addr_t dtb;
     uint32_t thread_id;
@@ -194,7 +193,7 @@ public:
     mmvad_info_t mmvad;
     bool is_hooked;
 
-private:
+    // internal, hooks attached to DLL
     std::vector<userhook*> hooks;
 
     // internal, for page faults
