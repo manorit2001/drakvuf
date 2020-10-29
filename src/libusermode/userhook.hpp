@@ -181,11 +181,13 @@ struct userhook
     drakvuf_trap_t* trap;
     void* plugin;
 
-    userhook_entry(std::string target_name, std::string clsid, callback_t callback, void* plugin)
+    // HOOK_BY_NAME
+    userhook(std::string target_name, std::string clsid, callback_t callback, void* plugin)
         : pid(0), type(HOOK_BY_NAME), target_name(target_name), clsid(clsid), offset(0), callback(callback), state(HOOK_FIRST_TRY), trap(nullptr), plugin(plugin)
     {}
 
-    userhook_entry(std::string target_name, std::string clsid, addr_t offset, callback_t callback, void* plugin)
+    // HOOK_BY_OFFSET
+    userhook(std::string target_name, std::string clsid, addr_t offset, callback_t callback, void* plugin)
         : pid(0), type(HOOK_BY_OFFSET), target_name(target_name), clsid(clsid), offset(offset), callback(callback), state(HOOK_FIRST_TRY), trap(nullptr), plugin(plugin)
     {}
 };
