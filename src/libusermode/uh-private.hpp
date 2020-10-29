@@ -112,21 +112,11 @@
 #include "plugins/private.h"
 #include "plugins/plugins_ex.h"
 
-struct dll_t
-{
-    dll_view_t v;
-
-    // one entry per hooked function
-    std::vector<hook_target_entry_t> targets;
-
-    // internal, for page faults
-    addr_t pf_current_addr;
-    addr_t pf_max_addr;
-};
-
 struct map_view_of_section_result_t : public call_result_t
 {
-    map_view_of_section_result_t() : call_result_t(), section_handle(), process_handle(), base_address_ptr() {}
+    map_view_of_section_result_t()
+        : call_result_t(), section_handle(), process_handle(), base_address_ptr()
+    {}
 
     uint64_t section_handle;
     uint64_t process_handle;
@@ -135,31 +125,33 @@ struct map_view_of_section_result_t : public call_result_t
 
 struct copy_on_write_result_t : public call_result_t
 {
-    copy_on_write_result_t() : call_result_t(), vaddr(), pte(), old_cow_pa() {}
+    copy_on_write_result_t()
+        : call_result_t(), vaddr(), pte(), old_cow_pa()
+    {}
 
     addr_t vaddr;
     addr_t pte;
     addr_t old_cow_pa;
-    std::vector<hook_target_entry_t*> hooks;
+    std::vector<userhook*> hooks;
 };
 
-class userhook : public pluginex
+class userhook_plugin : public pluginex
 {
 public:
+    userhook_plugin(drakvuf_t drakvuf) : pluginex(drakvuf, OUTPUT_DEFAULT), initialized(0) {}
+    ~userhook_plugin();
+
     int initialized;
 
     std::vector<usermode_cb_registration> plugins;
     // map dtb -> list of hooked dlls
     std::map<addr_t, std::vector<dll_t>> loaded_dlls;
 
-    userhook(drakvuf_t drakvuf) : pluginex(drakvuf, OUTPUT_DEFAULT), initialized(0) {}
-    ~userhook();
-
     usermode_reg_status_t init(drakvuf_t drakvuf);
     void register_plugin(drakvuf_t drakvuf, usermode_cb_registration reg);
-    void request_usermode_hook(drakvuf_t drakvuf, const dll_view_t* dll, const userhook_request& target, callback_t callback, void* extra);
+    void request_usermode_hook(drakvuf_t drakvuf, const dll_t* dll, const userhook_request& target, callback_t callback, void* extra);
 };
 
-extern userhook* instance;
+extern userhook_plugin* instance;
 
 #endif

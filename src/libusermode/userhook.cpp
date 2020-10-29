@@ -144,7 +144,7 @@ static void wrap_delete(drakvuf_trap_t* trap)
  * Check if this thread is currently in process of loading a DLL.
  * If so, return a pointer to the associated metadata.
  */
-static dll_t* get_pending_dll(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook* plugin)
+static dll_t* get_pending_dll(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook_plugin* plugin)
 {
     uint32_t thread_id;
     if (!drakvuf_get_current_thread_id(drakvuf, info, &thread_id))
@@ -168,7 +168,7 @@ static dll_t* get_pending_dll(drakvuf_t drakvuf, drakvuf_trap_info* info, userho
  * Check if DLL is interesting, if so, build a "hooking context" of a DLL. Such context is needed,
  * because user mode hooking is a stateful operation which requires a VM to be un-paused many times.
  */
-static dll_t* create_dll_meta(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook* plugin, addr_t dll_base)
+dll_t* create_dll_meta(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook* plugin, addr_t dll_base)
 {
     mmvad_info_t mmvad;
     if (!drakvuf_find_mmvad(drakvuf, info->proc_data.base_addr, dll_base, &mmvad))
@@ -206,7 +206,7 @@ static dll_t* create_dll_meta(drakvuf_t drakvuf, drakvuf_trap_info* info, userho
 
     for (auto& reg : plugin->plugins)
     {
-        reg.pre_cb(drakvuf, (const dll_view_t*)&dll_meta, reg.extra);
+        reg.pre_cb(drakvuf, &dll_meta, reg.extra);
     }
 
     if (dll_meta.targets.empty())
@@ -231,12 +231,11 @@ static dll_t* create_dll_meta(drakvuf_t drakvuf, drakvuf_trap_info* info, userho
     constexpr int MAX_HEADER_BYTES = 1024;   // keep under 1 page
     uint8_t image[MAX_HEADER_BYTES];
 
-    vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
-    bool status = (VMI_SUCCESS == peparse_get_image(vmi, &ctx, MAX_HEADER_BYTES, image));
-    drakvuf_release_vmi(drakvuf);
-
-    if (!status)
-        return nullptr;
+    {
+        auto vmi = vmi_lock_guard{drakvuf};
+        if (!(VMI_SUCCESS == peparse_get_image(vmi, &ctx, MAX_HEADER_BYTES, image)))
+            return nullptr;
+    }
 
     void* optional_header = NULL;
     uint16_t magic = 0;
@@ -274,7 +273,7 @@ static bool make_trap(vmi_instance_t vmi, drakvuf_t drakvuf, drakvuf_trap_info* 
 {
     target->pid = info->proc_data.pid;
 
-    drakvuf_trap_t* trap = g_slice_new(drakvuf_trap_t);
+    auto trap = new drakvuf_trap_t;
     trap->type = BREAKPOINT;
     trap->name = target->target_name.c_str();
     trap->cb = target->callback;
@@ -299,7 +298,7 @@ static bool make_trap(vmi_instance_t vmi, drakvuf_t drakvuf, drakvuf_trap_info* 
 
 fail:
     PRINT_DEBUG("[USERHOOK] Failed to add trap :(\n");
-    g_slice_free(drakvuf_trap_t, trap);
+    delete trap;
     return false;
 }
 
@@ -708,7 +707,7 @@ static event_response_t copy_on_write_handler(drakvuf_t drakvuf, drakvuf_trap_in
         }
     }
 
-    std::vector < hook_target_entry_t* > hooks;
+    std::vector<userhook*> hooks;
     for (auto& dll : plugin->loaded_dlls[info->regs->cr3])
     {
         for (auto& hook : dll.targets)
@@ -792,10 +791,8 @@ usermode_reg_status_t userhook::init(drakvuf_t drakvuf)
     return USERMODE_REGISTER_SUCCESS;
 }
 
-void userhook::request_usermode_hook(drakvuf_t drakvuf, const dll_view_t* dll, const userhook_request& target, callback_t callback, void* extra)
+void userhook::request_usermode_hook(drakvuf_t drakvuf, const dll_t* dll, const userhook_request& target, callback_t callback, void* extra)
 {
-    dll_t* p_dll = (dll_t*)const_cast<dll_view_t*>(dll);
-
     if (target->type == HOOK_BY_NAME)
         p_dll->targets.emplace_back(target.function_name, target.clsid, callback, extra);
     else // HOOK_BY_OFFSET
@@ -845,7 +842,7 @@ usermode_reg_status_t drakvuf_register_usermode_callback(drakvuf_t drakvuf, user
     return USERMODE_REGISTER_SUCCESS;
 }
 
-bool drakvuf_request_usermode_hook(drakvuf_t drakvuf, const dll_view_t* dll, const userhook_request* target, callback_t callback, void* extra)
+bool drakvuf_request_usermode_hook(drakvuf_t drakvuf, const dll_t* dll, const userhook_request& target, callback_t callback, void* extra)
 {
     if (!instance || !instance->initialized)
     {
