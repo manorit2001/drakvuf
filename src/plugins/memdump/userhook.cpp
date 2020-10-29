@@ -133,7 +133,7 @@
 
 static event_response_t usermode_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info* info)
 {
-    hook_target_entry_t* target = (hook_target_entry_t*)info->trap->data;
+    auto target = (userhook*)info->trap->data;
 
     // TODO check thread_id and cr3?
     if (target->pid != info->proc_data.pid)
@@ -146,7 +146,7 @@ static event_response_t usermode_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info* i
     return VMI_EVENT_RESPONSE_NONE;
 }
 
-static void on_dll_discovered(drakvuf_t drakvuf, const dll_view_t* dll, void* extra)
+static void on_dll_discovered(drakvuf_t drakvuf, const dll_t* dll, void* extra)
 {
     memdump* plugin = (memdump*)extra;
 
@@ -170,7 +170,7 @@ static void on_dll_discovered(drakvuf_t drakvuf, const dll_view_t* dll, void* ex
     drakvuf_release_vmi(drakvuf);
 }
 
-static void on_dll_hooked(drakvuf_t drakvuf, const dll_view_t* dll, const std::vector<hook_target_view_t>& targets, void* extra)
+static void on_dll_hooked(drakvuf_t drakvuf, const dll_t* dll, const std::vector<userhook>& targets, void* extra)
 {
     PRINT_DEBUG("[MEMDUMP] DLL hooked - done\n");
 }
