@@ -242,13 +242,13 @@ void memdump::setup_dotnet_hooks(drakvuf_t drakvuf, const char* dll_name, const 
         return;
     }
 
-    plugin_target_config_entry_t entry;
-    entry.function_name = "AssemblyNative::LoadImage";
-    entry.dll_name = dll_name;
-    entry.type = HOOK_BY_OFFSET;
-    entry.offset = func_rva;
-    entry.actions = HookActions::empty().set_log().set_stack();
-    this->wanted_hooks.push_back(std::move(entry));
+    userhook_request request;
+    request.function_name = "AssemblyNative::LoadImage";
+    request.dll_name = dll_name;
+    request.type = HOOK_BY_OFFSET;
+    request.offset = func_rva;
+    request.actions = HookActions::empty().set_log().set_stack();
+    this->wanted_hooks.push_back(std::move(request));
 }
 
 void memdump::userhook_destroy()
