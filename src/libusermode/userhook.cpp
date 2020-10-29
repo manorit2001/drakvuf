@@ -183,7 +183,7 @@ dll_t* create_dll_meta(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook_plug
     {
         for (auto const& dll_meta : vec_it->second)
         {
-            if (dll_meta.v.real_dll_base == mmvad.starting_vpn << 12)
+            if (dll_meta.real_dll_base == mmvad.starting_vpn << 12)
             {
                 PRINT_DEBUG("[USERHOOK] DLL %d!%llx is already hooked\n", info->proc_data.pid, (unsigned long long)mmvad.starting_vpn << 12);
                 return nullptr;
@@ -275,8 +275,8 @@ static bool make_trap(vmi_instance_t vmi, drakvuf_t drakvuf, drakvuf_trap_info* 
 
     auto trap = new drakvuf_trap_t;
     trap->type = BREAKPOINT;
-    trap->name = target->target_name.c_str();
-    trap->cb = target->callback;
+    trap->name = target->req.target_name.c_str();
+    trap->cb = target->req.callback;
     trap->data = target;
 
     // during CoW we need to find all traps placed on the same physical page
@@ -343,7 +343,7 @@ static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap
         {
             addr_t exec_func = 0;
 
-            if (target.type == HOOK_BY_NAME)
+            if (target->req.type == HOOK_BY_NAME)
             {
                 access_context_t ctx =
                 {
@@ -352,17 +352,17 @@ static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap
                     .addr = dll_meta->real_dll_base
                 };
 
-                if (vmi_translate_sym2v(lg.vmi, &ctx, target->target_name.c_str(), &exec_func) != VMI_SUCCESS)
+                if (vmi_translate_sym2v(lg.vmi, &ctx, target->req.target_name.c_str(), &exec_func) != VMI_SUCCESS)
                 {
                     target->state = HOOK_FAILED;
                     return VMI_EVENT_RESPONSE_NONE;
                 }
 
-                target->offset = exec_func - dll_meta->real_dll_base;
+                target->req.offset = exec_func - dll_meta->real_dll_base;
             }
             else // HOOK_BY_OFFSET
             {
-                exec_func = dll_meta->real_dll_base + target.offset;
+                exec_func = dll_meta->real_dll_base + target->req.offset;
             }
 
             if (target->state == HOOK_FIRST_TRY)
@@ -381,7 +381,7 @@ static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap
                 else
                 {
                     if (make_trap(lg.vmi, drakvuf, info, target, exec_func))
-                        target.state = HOOK_OK;
+                        target->state = HOOK_OK;
                 }
             }
             else if (target->state == HOOK_PAGEFAULT_RETRY)
@@ -397,28 +397,28 @@ static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap
             }
             else
             {
-                target.state = HOOK_FAILED;
+                target->state = HOOK_FAILED;
             }
 
             PRINT_DEBUG("[USERHOOK] Hook %s (vaddr = 0x%llx, dll_base = 0x%llx, result = %s)\n",
-                        target.target_name.c_str(),
+                        target->req.target_name.c_str(),
                         (unsigned long long)exec_func,
-                        (unsigned long long)dll_meta->v.real_dll_base,
-                        target.state == HOOK_OK ? "OK" : "FAIL");
+                        (unsigned long long)dll_meta->real_dll_base,
+                        target->state == HOOK_OK ? "OK" : "FAIL");
         }
     }
 
     PRINT_DEBUG("[USERHOOK] Done, flag DLL as hooked\n");
-    dll_meta->v.is_hooked = true;
+    dll_meta->is_hooked = true;
     return VMI_EVENT_RESPONSE_NONE;
 }
 
 static event_response_t perform_hooking(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook* plugin, dll_t* dll_meta)
 {
-    bool was_hooked = dll_meta->v.is_hooked;
+    bool was_hooked = dll_meta->is_hooked;
     event_response_t ret = internal_perform_hooking(drakvuf, info, plugin, dll_meta);
 
-    if (!was_hooked && dll_meta->v.is_hooked)
+    if (!was_hooked && dll_meta->is_hooked)
     {
         for (auto& reg : plugin->plugins)
         {
