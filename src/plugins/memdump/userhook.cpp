@@ -139,7 +139,7 @@ static event_response_t usermode_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info* i
     if (target->pid != info->proc_data.pid)
         return VMI_EVENT_RESPONSE_NONE;
 
-    if (target->function_name == "AssemblyNative::LoadImage")
+    if (target->req.function_name == "AssemblyNative::LoadImage")
         dotnet_assembly_native_load_image_cb(drakvuf, info, (memdump*)target->plugin);
 
     dump_from_stack(drakvuf, info, (memdump*)target->plugin);
