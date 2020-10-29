@@ -152,14 +152,12 @@ struct userhook_request
     addr_t offset;
     HookActions actions;
 
-    userhook_request()
-        : dll_name(), function_name(), offset(), actions()
-    {}
-
+    // HOOK_BY_OFFSET
     userhook_request(std::string&& dll_name, std::string&& function_name, addr_t offset, HookActions hook_actions)
         : dll_name(std::move(dll_name)), type(HOOK_BY_OFFSET), function_name(std::move(function_name)), offset(offset), actions(hook_actions)
     {}
 
+    // HOOK_BY_NAME
     userhook_request(std::string&& dll_name, std::string&& function_name, HookActions hook_actions)
         : dll_name(std::move(dll_name)), type(HOOK_BY_NAME), function_name(std::move(function_name)), offset(), actions(hook_actions)
     {}
@@ -176,19 +174,13 @@ enum userhook_state
 struct userhook
 {
     userhook_request req;
-    vmi_pid_t pid;
-    userhook_state state;
-    drakvuf_trap_t* trap;
+    vmi_pid_t pid = 0;
+    userhook_state state = HOOK_FIRST_TRY;
+    drakvuf_trap_t* trap = nullptr;
     void* plugin;
 
-    // HOOK_BY_NAME
-    userhook(std::string target_name, std::string clsid, callback_t callback, void* plugin)
-        : pid(0), type(HOOK_BY_NAME), target_name(target_name), clsid(clsid), offset(0), callback(callback), state(HOOK_FIRST_TRY), trap(nullptr), plugin(plugin)
-    {}
-
-    // HOOK_BY_OFFSET
-    userhook(std::string target_name, std::string clsid, addr_t offset, callback_t callback, void* plugin)
-        : pid(0), type(HOOK_BY_OFFSET), target_name(target_name), clsid(clsid), offset(offset), callback(callback), state(HOOK_FIRST_TRY), trap(nullptr), plugin(plugin)
+    userhook(const userhook_request& req, void* plugin)
+        : req(req), plugin(plugin)
     {}
 };
 
