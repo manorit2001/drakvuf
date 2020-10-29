@@ -792,14 +792,14 @@ usermode_reg_status_t userhook::init(drakvuf_t drakvuf)
     return USERMODE_REGISTER_SUCCESS;
 }
 
-void userhook::request_usermode_hook(drakvuf_t drakvuf, const dll_view_t* dll, const plugin_target_config_entry_t* target, callback_t callback, void* extra)
+void userhook::request_usermode_hook(drakvuf_t drakvuf, const dll_view_t* dll, const userhook_request& target, callback_t callback, void* extra)
 {
     dll_t* p_dll = (dll_t*)const_cast<dll_view_t*>(dll);
 
     if (target->type == HOOK_BY_NAME)
-        p_dll->targets.emplace_back(target->function_name, target->clsid, callback, extra);
+        p_dll->targets.emplace_back(target.function_name, target.clsid, callback, extra);
     else // HOOK_BY_OFFSET
-        p_dll->targets.emplace_back(target->function_name, target->clsid, target->offset, callback, extra);
+        p_dll->targets.emplace_back(target.function_name, target.clsid, target.offset, callback, extra);
 }
 
 void userhook::register_plugin(drakvuf_t drakvuf, usermode_cb_registration reg)
@@ -845,7 +845,7 @@ usermode_reg_status_t drakvuf_register_usermode_callback(drakvuf_t drakvuf, user
     return USERMODE_REGISTER_SUCCESS;
 }
 
-bool drakvuf_request_usermode_hook(drakvuf_t drakvuf, const dll_view_t* dll, const plugin_target_config_entry_t* target, callback_t callback, void* extra)
+bool drakvuf_request_usermode_hook(drakvuf_t drakvuf, const dll_view_t* dll, const userhook_request* target, callback_t callback, void* extra)
 {
     if (!instance || !instance->initialized)
     {
@@ -870,15 +870,17 @@ std::optional<HookActions> get_hook_actions(const std::string& str)
     return std::nullopt;
 }
 
-void drakvuf_load_dll_hook_config(drakvuf_t drakvuf, const char* dll_hooks_list_path, const bool print_no_addr, std::vector<plugin_target_config_entry_t>* wanted_hooks)
+std::vector<userhook_request> drakvuf_load_dll_hook_config(drakvuf_t drakvuf, const char* dll_hooks_list_path, const bool print_no_addr)
 {
+    std::vector<userhook_request> wanted_hooks;
+
     if (!dll_hooks_list_path)
     {
         const auto log_and_stack = HookActions::empty().set_log().set_stack();
         // if the DLL hook list was not provided, we provide some simple defaults
-        wanted_hooks->emplace_back("ws2_32.dll", "WSAStartup", log_and_stack);
-        wanted_hooks->emplace_back("ntdll.dll", "RtlExitUserProcess", log_and_stack);
-        return;
+        wanted_hooks.emplace_back("ws2_32.dll", "WSAStartup", log_and_stack);
+        wanted_hooks.emplace_back("ntdll.dll", "RtlExitUserProcess", log_and_stack);
+        return wanted_hooks;
     }
 
     std::ifstream ifs(dll_hooks_list_path, std::ifstream::in);
@@ -896,8 +898,7 @@ void drakvuf_load_dll_hook_config(drakvuf_t drakvuf, const char* dll_hooks_list_
 
         std::stringstream ss(line);
 
-        wanted_hooks->push_back(plugin_target_config_entry_t());
-        plugin_target_config_entry_t& e = wanted_hooks->back();
+        auto e = wanted_hooks.emplace_back(userhook_request{});
 
         if (!std::getline(ss, e.dll_name, ',') || e.dll_name.empty())
             throw -1;
@@ -967,4 +968,6 @@ void drakvuf_load_dll_hook_config(drakvuf_t drakvuf, const char* dll_hooks_list_
             ++arg_idx;
         }
     }
+
+    return wanted_hooks;
 }

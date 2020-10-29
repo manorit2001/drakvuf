@@ -143,7 +143,7 @@ struct HookActions
     }
 };
 
-struct plugin_target_config_entry_t
+struct userhook_request
 {
     std::string dll_name;
     target_hook_type type;
@@ -152,15 +152,15 @@ struct plugin_target_config_entry_t
     addr_t offset;
     HookActions actions;
 
-    plugin_target_config_entry_t()
+    userhook_request()
         : dll_name(), function_name(), offset(), actions()
     {}
 
-    plugin_target_config_entry_t(std::string&& dll_name, std::string&& function_name, addr_t offset, HookActions hook_actions)
+    userhook_request(std::string&& dll_name, std::string&& function_name, addr_t offset, HookActions hook_actions)
         : dll_name(std::move(dll_name)), type(HOOK_BY_OFFSET), function_name(std::move(function_name)), offset(offset), actions(hook_actions)
     {}
 
-    plugin_target_config_entry_t(std::string&& dll_name, std::string&& function_name, HookActions hook_actions)
+    userhook_request(std::string&& dll_name, std::string&& function_name, HookActions hook_actions)
         : dll_name(std::move(dll_name)), type(HOOK_BY_NAME), function_name(std::move(function_name)), offset(), actions(hook_actions)
     {}
 };
@@ -246,7 +246,7 @@ typedef enum usermode_reg_status
 } usermode_reg_status_t;
 
 usermode_reg_status_t drakvuf_register_usermode_callback(drakvuf_t drakvuf, usermode_cb_registration* reg);
-bool drakvuf_request_usermode_hook(drakvuf_t drakvuf, const dll_view_t* dll, const plugin_target_config_entry_t* target, callback_t callback, void* extra);
-void drakvuf_load_dll_hook_config(drakvuf_t drakvuf, const char* dll_hooks_list_path, const bool print_no_addr, std::vector<plugin_target_config_entry_t>* wanted_hooks);
+bool drakvuf_request_usermode_hook(drakvuf_t drakvuf, const dll_view_t* dll, const userhook_request& target, callback_t callback, void* extra);
+std::vector<userhook_request> drakvuf_load_dll_hook_config(drakvuf_t drakvuf, const char* dll_hooks_list_path, const bool print_no_addr);
 
 #endif
