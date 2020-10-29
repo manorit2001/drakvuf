@@ -116,7 +116,7 @@
 class rpcmon: public pluginex
 {
 public:
-    std::vector<plugin_target_config_entry_t> wanted_hooks;
+    std::vector<userhook_request> wanted_hooks;
 
     rpcmon(drakvuf_t drakvuf, output_format_t output);
     ~rpcmon();
