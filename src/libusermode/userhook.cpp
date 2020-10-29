@@ -132,7 +132,7 @@
 #include "uh-private.hpp"
 
 
-userhook* instance = nullptr;
+userhook_plugin* instance = nullptr;
 
 
 static void wrap_delete(drakvuf_trap_t* trap)
@@ -157,7 +157,7 @@ static dll_t* get_pending_dll(drakvuf_t drakvuf, drakvuf_trap_info* info, userho
 
     for (auto& dll_meta : vec_it->second)
     {
-        if (!dll_meta.v.is_hooked && dll_meta.v.thread_id == thread_id)
+        if (!dll_meta.is_hooked && dll_meta.thread_id == thread_id)
             return &dll_meta;
     }
 
@@ -168,7 +168,7 @@ static dll_t* get_pending_dll(drakvuf_t drakvuf, drakvuf_trap_info* info, userho
  * Check if DLL is interesting, if so, build a "hooking context" of a DLL. Such context is needed,
  * because user mode hooking is a stateful operation which requires a VM to be un-paused many times.
  */
-dll_t* create_dll_meta(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook* plugin, addr_t dll_base)
+dll_t* create_dll_meta(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook_plugin* plugin, addr_t dll_base)
 {
     mmvad_info_t mmvad;
     if (!drakvuf_find_mmvad(drakvuf, info->proc_data.base_addr, dll_base, &mmvad))
@@ -197,11 +197,11 @@ dll_t* create_dll_meta(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook* plu
 
     dll_t dll_meta =
     {
-        .v.dtb = info->regs->cr3,
-        .v.thread_id = thread_id,
-        .v.real_dll_base = (mmvad.starting_vpn << 12),
-        .v.mmvad = mmvad,
-        .v.is_hooked = false
+        .dtb = info->regs->cr3,
+        .thread_id = thread_id,
+        .real_dll_base = (mmvad.starting_vpn << 12),
+        .mmvad = mmvad,
+        .is_hooked = false
     };
 
     for (auto& reg : plugin->plugins)
@@ -269,7 +269,7 @@ dll_t* create_dll_meta(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook* plu
     return &it->second.back();
 }
 
-static bool make_trap(vmi_instance_t vmi, drakvuf_t drakvuf, drakvuf_trap_info* info, hook_target_entry_t* target, addr_t exec_func)
+static bool make_trap(vmi_instance_t vmi, drakvuf_t drakvuf, drakvuf_trap_info* info, userhook* target, addr_t exec_func)
 {
     target->pid = info->proc_data.pid;
 
@@ -339,7 +339,7 @@ static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap
     // export info should be available, try hooking DLLs
     for (auto& target : dll_meta->hooks)
     {
-        if (target.state == HOOK_FIRST_TRY || target.state == HOOK_PAGEFAULT_RETRY)
+        if (target->state == HOOK_FIRST_TRY || target->state == HOOK_PAGEFAULT_RETRY)
         {
             addr_t exec_func = 0;
 
@@ -349,50 +349,50 @@ static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap
                 {
                     .translate_mechanism = VMI_TM_PROCESS_DTB,
                     .dtb = info->regs->cr3,
-                    .addr = dll_meta->v.real_dll_base
+                    .addr = dll_meta->real_dll_base
                 };
 
-                if (vmi_translate_sym2v(lg.vmi, &ctx, target.target_name.c_str(), &exec_func) != VMI_SUCCESS)
+                if (vmi_translate_sym2v(lg.vmi, &ctx, target->target_name.c_str(), &exec_func) != VMI_SUCCESS)
                 {
-                    target.state = HOOK_FAILED;
+                    target->state = HOOK_FAILED;
                     return VMI_EVENT_RESPONSE_NONE;
                 }
 
-                target.offset = exec_func - dll_meta->v.real_dll_base;
+                target->offset = exec_func - dll_meta->real_dll_base;
             }
             else // HOOK_BY_OFFSET
             {
-                exec_func = dll_meta->v.real_dll_base + target.offset;
+                exec_func = dll_meta->real_dll_base + target.offset;
             }
 
-            if (target.state == HOOK_FIRST_TRY)
+            if (target->state == HOOK_FIRST_TRY)
             {
-                target.state = HOOK_FAILED;
+                target->state = HOOK_FAILED;
 
                 page_info_t pinfo;
                 if (vmi_pagetable_lookup_extended(lg.vmi, info->regs->cr3, exec_func, &pinfo) != VMI_SUCCESS)
                 {
                     if (vmi_request_page_fault(lg.vmi, info->vcpu, exec_func, 0) == VMI_SUCCESS)
                     {
-                        target.state = HOOK_PAGEFAULT_RETRY;
+                        target->state = HOOK_PAGEFAULT_RETRY;
                         return VMI_EVENT_RESPONSE_NONE;
                     }
                 }
                 else
                 {
-                    if (make_trap(lg.vmi, drakvuf, info, &target, exec_func))
+                    if (make_trap(lg.vmi, drakvuf, info, target, exec_func))
                         target.state = HOOK_OK;
                 }
             }
-            else if (target.state == HOOK_PAGEFAULT_RETRY)
+            else if (target->state == HOOK_PAGEFAULT_RETRY)
             {
-                target.state = HOOK_FAILED;
+                target->state = HOOK_FAILED;
                 page_info_t pinfo;
 
                 if (vmi_pagetable_lookup_extended(lg.vmi, info->regs->cr3, exec_func, &pinfo) == VMI_SUCCESS)
                 {
-                    if (make_trap(lg.vmi, drakvuf, info, &target, exec_func))
-                        target.state = HOOK_OK;
+                    if (make_trap(lg.vmi, drakvuf, info, target, exec_func))
+                        target->state = HOOK_OK;
                 }
             }
             else
