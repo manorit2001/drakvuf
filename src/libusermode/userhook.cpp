@@ -275,8 +275,8 @@ static bool make_trap(vmi_instance_t vmi, drakvuf_t drakvuf, drakvuf_trap_info* 
 
     auto trap = new drakvuf_trap_t;
     trap->type = BREAKPOINT;
-    trap->name = target->req.target_name.c_str();
-    trap->cb = target->req.callback;
+    trap->name = target->req.function_name.c_str();
+    trap->cb = target->callback;
     trap->data = target;
 
     // during CoW we need to find all traps placed on the same physical page
@@ -302,7 +302,7 @@ fail:
     return false;
 }
 
-static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook* plugin, dll_t* dll_meta)
+static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook_plugin* plugin, dll_t* dll_meta)
 {
     vmi_lock_guard lg(drakvuf);
 
@@ -352,7 +352,7 @@ static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap
                     .addr = dll_meta->real_dll_base
                 };
 
-                if (vmi_translate_sym2v(lg.vmi, &ctx, target->req.target_name.c_str(), &exec_func) != VMI_SUCCESS)
+                if (vmi_translate_sym2v(lg.vmi, &ctx, target->req.function_name.c_str(), &exec_func) != VMI_SUCCESS)
                 {
                     target->state = HOOK_FAILED;
                     return VMI_EVENT_RESPONSE_NONE;
@@ -401,7 +401,7 @@ static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap
             }
 
             PRINT_DEBUG("[USERHOOK] Hook %s (vaddr = 0x%llx, dll_base = 0x%llx, result = %s)\n",
-                        target->req.target_name.c_str(),
+                        target->req.function_name.c_str(),
                         (unsigned long long)exec_func,
                         (unsigned long long)dll_meta->real_dll_base,
                         target->state == HOOK_OK ? "OK" : "FAIL");
@@ -625,7 +625,7 @@ static event_response_t terminate_process_hook_cb(drakvuf_t drakvuf, drakvuf_tra
             if (hook.state == HOOK_OK)
             {
                 PRINT_DEBUG("[USERHOOK] Erased trap for pid %d %s\n", info->proc_data.pid,
-                            hook.target_name.c_str());
+                            hook.function_name.c_str());
                 drakvuf_remove_trap(drakvuf, hook.trap, NULL);
             }
         }
