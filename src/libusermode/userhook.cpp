@@ -380,7 +380,7 @@ static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap
                 }
                 else
                 {
-                    if (make_trap(lg.vmi, drakvuf, info, &target, exec_func))
+                    if (make_trap(lg.vmi, drakvuf, info, target, exec_func))
                         target.state = HOOK_OK;
                 }
             }
@@ -391,7 +391,7 @@ static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap
 
                 if (vmi_pagetable_lookup_extended(lg.vmi, info->regs->cr3, exec_func, &pinfo) == VMI_SUCCESS)
                 {
-                    if (make_trap(lg.vmi, drakvuf, info, &target, exec_func))
+                    if (make_trap(lg.vmi, drakvuf, info, target, exec_func))
                         target.state = HOOK_OK;
                 }
             }
@@ -622,11 +622,11 @@ static event_response_t terminate_process_hook_cb(drakvuf_t drakvuf, drakvuf_tra
     {
         for (auto& hook : it.hooks)
         {
-            if (hook->state == HOOK_OK)
+            if (hook.state == HOOK_OK)
             {
                 PRINT_DEBUG("[USERHOOK] Erased trap for pid %d %s\n", info->proc_data.pid,
-                            hook->req.function_name.c_str());
-                drakvuf_remove_trap(drakvuf, hook->trap, NULL);
+                            hook.req.function_name.c_str());
+                drakvuf_remove_trap(drakvuf, hook.trap, NULL);
             }
         }
     }
@@ -675,7 +675,7 @@ static event_response_t copy_on_write_ret_cb(drakvuf_t drakvuf, drakvuf_trap_inf
             hook->trap = nullptr;
         }
 
-        make_trap(lg.vmi, drakvuf, info, hook, hook_va);
+        make_trap(lg.vmi, drakvuf, info, *hook, hook_va);
     }
 
     return VMI_EVENT_RESPONSE_NONE;
@@ -705,12 +705,12 @@ static event_response_t copy_on_write_handler(drakvuf_t drakvuf, drakvuf_trap_in
     {
         for (auto& hook : dll.hooks)
         {
-            if (hook->state == HOOK_OK)
+            if (hook.state == HOOK_OK)
             {
-                addr_t hook_addr = hook->trap->breakpoint.addr;
+                addr_t hook_addr = hook.trap->breakpoint.addr;
                 if (hook_addr >> 12 == pa >> 12)
                 {
-                    wanted_hooks.push_back(hook);
+                    wanted_hooks.push_back(&hook);
                 }
             }
         }
@@ -802,9 +802,9 @@ userhook_plugin::~userhook_plugin()
         {
             for (auto& hook : loaded_dll.hooks)
             {
-                if (hook->state == HOOK_OK)
+                if (hook.state == HOOK_OK)
                 {
-                    delete hook->trap;
+                    delete hook.trap;
                 }
             }
         }
