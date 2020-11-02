@@ -269,14 +269,14 @@ dll_t* create_dll_meta(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook_plug
     return &it->second.back();
 }
 
-static bool make_trap(vmi_instance_t vmi, drakvuf_t drakvuf, drakvuf_trap_info* info, userhook* target, addr_t exec_func)
+static bool make_trap(vmi_instance_t vmi, drakvuf_t drakvuf, drakvuf_trap_info* info, userhook& target, addr_t exec_func)
 {
     target->pid = info->proc_data.pid;
 
     auto trap = new drakvuf_trap_t;
     trap->type = BREAKPOINT;
-    trap->name = target->req.function_name.c_str();
-    trap->cb = target->callback;
+    trap->name = target.req.function_name.c_str();
+    trap->cb = target.callback;
     trap->data = target;
 
     // during CoW we need to find all traps placed on the same physical page
@@ -292,7 +292,7 @@ static bool make_trap(vmi_instance_t vmi, drakvuf_t drakvuf, drakvuf_trap_info* 
 
     if (drakvuf_add_trap(drakvuf, trap))
     {
-        target->trap = trap;
+        target.trap = trap;
         return true;
     }
 
@@ -339,11 +339,11 @@ static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap
     // export info should be available, try hooking DLLs
     for (auto& target : dll_meta->hooks)
     {
-        if (target->state == HOOK_FIRST_TRY || target->state == HOOK_PAGEFAULT_RETRY)
+        if (target.state == HOOK_FIRST_TRY || target.state == HOOK_PAGEFAULT_RETRY)
         {
             addr_t exec_func = 0;
 
-            if (target->req.type == HOOK_BY_NAME)
+            if (target.req.type == HOOK_BY_NAME)
             {
                 access_context_t ctx =
                 {
@@ -352,59 +352,59 @@ static event_response_t internal_perform_hooking(drakvuf_t drakvuf, drakvuf_trap
                     .addr = dll_meta->real_dll_base
                 };
 
-                if (vmi_translate_sym2v(lg.vmi, &ctx, target->req.function_name.c_str(), &exec_func) != VMI_SUCCESS)
+                if (vmi_translate_sym2v(lg.vmi, &ctx, target.req.function_name.c_str(), &exec_func) != VMI_SUCCESS)
                 {
-                    target->state = HOOK_FAILED;
+                    target.state = HOOK_FAILED;
                     return VMI_EVENT_RESPONSE_NONE;
                 }
 
-                target->req.offset = exec_func - dll_meta->real_dll_base;
+                target.req.offset = exec_func - dll_meta->real_dll_base;
             }
             else // HOOK_BY_OFFSET
             {
-                exec_func = dll_meta->real_dll_base + target->req.offset;
+                exec_func = dll_meta->real_dll_base + target.req.offset;
             }
 
-            if (target->state == HOOK_FIRST_TRY)
+            if (target.state == HOOK_FIRST_TRY)
             {
-                target->state = HOOK_FAILED;
+                target.state = HOOK_FAILED;
 
                 page_info_t pinfo;
                 if (vmi_pagetable_lookup_extended(lg.vmi, info->regs->cr3, exec_func, &pinfo) != VMI_SUCCESS)
                 {
                     if (vmi_request_page_fault(lg.vmi, info->vcpu, exec_func, 0) == VMI_SUCCESS)
                     {
-                        target->state = HOOK_PAGEFAULT_RETRY;
+                        target.state = HOOK_PAGEFAULT_RETRY;
                         return VMI_EVENT_RESPONSE_NONE;
                     }
                 }
                 else
                 {
-                    if (make_trap(lg.vmi, drakvuf, info, target, exec_func))
-                        target->state = HOOK_OK;
+                    if (make_trap(lg.vmi, drakvuf, info, &target, exec_func))
+                        target.state = HOOK_OK;
                 }
             }
-            else if (target->state == HOOK_PAGEFAULT_RETRY)
+            else if (target.state == HOOK_PAGEFAULT_RETRY)
             {
-                target->state = HOOK_FAILED;
+                target.state = HOOK_FAILED;
                 page_info_t pinfo;
 
                 if (vmi_pagetable_lookup_extended(lg.vmi, info->regs->cr3, exec_func, &pinfo) == VMI_SUCCESS)
                 {
-                    if (make_trap(lg.vmi, drakvuf, info, target, exec_func))
-                        target->state = HOOK_OK;
+                    if (make_trap(lg.vmi, drakvuf, info, &target, exec_func))
+                        target.state = HOOK_OK;
                 }
             }
             else
             {
-                target->state = HOOK_FAILED;
+                target.state = HOOK_FAILED;
             }
 
             PRINT_DEBUG("[USERHOOK] Hook %s (vaddr = 0x%llx, dll_base = 0x%llx, result = %s)\n",
-                        target->req.function_name.c_str(),
+                        target.req.function_name.c_str(),
                         (unsigned long long)exec_func,
                         (unsigned long long)dll_meta->real_dll_base,
-                        target->state == HOOK_OK ? "OK" : "FAIL");
+                        target.state == HOOK_OK ? "OK" : "FAIL");
         }
     }
 
