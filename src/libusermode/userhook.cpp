@@ -271,13 +271,13 @@ dll_t* create_dll_meta(drakvuf_t drakvuf, drakvuf_trap_info* info, userhook_plug
 
 static bool make_trap(vmi_instance_t vmi, drakvuf_t drakvuf, drakvuf_trap_info* info, userhook& target, addr_t exec_func)
 {
-    target->pid = info->proc_data.pid;
+    target.pid = info->proc_data.pid;
 
     auto trap = new drakvuf_trap_t;
     trap->type = BREAKPOINT;
     trap->name = target.req.function_name.c_str();
     trap->cb = target.callback;
-    trap->data = target;
+    trap->data = &target;
 
     // during CoW we need to find all traps placed on the same physical page
     // that's why we'll manually resolve vaddr and strore paddr under trap->breakpoint.addr
