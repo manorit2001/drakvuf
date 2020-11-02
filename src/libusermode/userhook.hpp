@@ -177,10 +177,10 @@ struct userhook
     vmi_pid_t pid = 0;
     userhook_state state = HOOK_FIRST_TRY;
     drakvuf_trap_t* trap = nullptr;
-    event_response_t callback;
+    callback_t callback;
     void* plugin;
 
-    userhook(const userhook_request& req, event_response_t callback, void* plugin)
+    userhook(const userhook_request& req, callback_t callback, void* plugin)
         : req(req), callback(callback), plugin(plugin)
     {}
 };
@@ -203,7 +203,7 @@ struct dll_t
 };
 
 typedef void (*dll_pre_hook_cb)(drakvuf_t, const dll_t*, void*);
-typedef void (*dll_post_hook_cb)(drakvuf_t, const dll_t*, const std::vector<userhook>& targets, void*);
+typedef void (*dll_post_hook_cb)(drakvuf_t, const dll_t*, const std::vector<userhook*>& targets, void*);
 
 struct usermode_cb_registration
 {
