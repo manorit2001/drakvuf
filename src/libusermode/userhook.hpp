@@ -180,7 +180,7 @@ struct userhook
     event_response_t callback;
     void* plugin;
 
-    userhook(const userhook_request& req, event_resonse_t callback, void* plugin)
+    userhook(const userhook_request& req, event_response_t callback, void* plugin)
         : req(req), callback(callback), plugin(plugin)
     {}
 };
