@@ -566,7 +566,7 @@ static event_response_t system_service_handler_hook_cb(drakvuf_t drakvuf, drakvu
     {
         for (auto const& dll_meta : vec_it->second)
         {
-            if (dll_meta.v.dtb == info->regs->cr3 && dll_meta.v.thread_id == thread_id)
+            if (dll_meta.dtb == info->regs->cr3 && dll_meta.thread_id == thread_id)
             {
                 our_fault = true;
                 break;
@@ -622,10 +622,10 @@ static event_response_t terminate_process_hook_cb(drakvuf_t drakvuf, drakvuf_tra
     {
         for (auto& hook : it.hooks)
         {
-            if (hook.state == HOOK_OK)
+            if (hook->state == HOOK_OK)
             {
                 PRINT_DEBUG("[USERHOOK] Erased trap for pid %d %s\n", info->proc_data.pid,
-                            hook.function_name.c_str());
+                            hook->function_name.c_str());
                 drakvuf_remove_trap(drakvuf, hook.trap, NULL);
             }
         }
@@ -705,9 +705,9 @@ static event_response_t copy_on_write_handler(drakvuf_t drakvuf, drakvuf_trap_in
     {
         for (auto& hook : dll.hooks)
         {
-            if (hook.state == HOOK_OK)
+            if (hook->state == HOOK_OK)
             {
-                addr_t hook_addr = hook.trap->breakpoint.addr;
+                addr_t hook_addr = hook->trap->breakpoint.addr;
                 if (hook_addr >> 12 == pa >> 12)
                 {
                     wanted_hooks.push_back(&hook);
