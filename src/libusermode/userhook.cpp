@@ -784,7 +784,7 @@ usermode_reg_status_t userhook_plugin::init(drakvuf_t drakvuf)
     return USERMODE_REGISTER_SUCCESS;
 }
 
-void userhook_plugin::request_usermode_hook(drakvuf_t drakvuf, const dll_t* dll, const userhook_request& target, callback_t callback, void* extra)
+void userhook_plugin::request_usermode_hook(drakvuf_t drakvuf, dll_t& dll, const userhook_request& target, callback_t callback, void* extra)
 {
     if (target.type == HOOK_BY_NAME)
         dll->hooks.emplace_back(target.function_name, target.clsid, callback, extra);
@@ -835,7 +835,7 @@ usermode_reg_status_t drakvuf_register_usermode_callback(drakvuf_t drakvuf, user
     return USERMODE_REGISTER_SUCCESS;
 }
 
-bool drakvuf_request_usermode_hook(drakvuf_t drakvuf, const dll_t* dll, const userhook_request& target, callback_t callback, void* extra)
+bool drakvuf_request_usermode_hook(drakvuf_t drakvuf, dll_t& dll, const userhook_request& target, callback_t callback, void* extra)
 {
     if (!instance || !instance->initialized)
     {
