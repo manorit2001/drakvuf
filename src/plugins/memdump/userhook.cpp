@@ -146,7 +146,7 @@ static event_response_t usermode_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info* i
     return VMI_EVENT_RESPONSE_NONE;
 }
 
-static void on_dll_discovered(drakvuf_t drakvuf, const dll_t* dll, void* extra)
+static void on_dll_discovered(drakvuf_t drakvuf, dll_t* dll, void* extra)
 {
     memdump* plugin = (memdump*)extra;
 

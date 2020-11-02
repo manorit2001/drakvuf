@@ -205,8 +205,8 @@ struct dll_t
     addr_t pf_max_addr;
 };
 
-typedef void (*dll_pre_hook_cb)(drakvuf_t, const dll_t*, void*);
-typedef void (*dll_post_hook_cb)(drakvuf_t, const dll_t*, const std::vector<userhook*>& targets, void*);
+typedef void (*dll_pre_hook_cb)(drakvuf_t, dll_t*, void*);
+typedef void (*dll_post_hook_cb)(drakvuf_t, dll_t*, const std::vector<userhook*>& targets, void*);
 
 struct usermode_cb_registration
 {
