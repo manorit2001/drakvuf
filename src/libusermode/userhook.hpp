@@ -198,7 +198,7 @@ struct dll_t
     bool is_hooked;
 
     // internal, hooks attached to DLL
-    std::vector<userhook*> hooks;
+    std::vector<std::unique_ptr<userhook>> hooks;
 
     // internal, for page faults
     addr_t pf_current_addr;
