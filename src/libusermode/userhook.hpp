@@ -177,7 +177,7 @@ struct userhook
     vmi_pid_t pid = 0;
     userhook_state state = HOOK_FIRST_TRY;
     drakvuf_trap_t* trap = nullptr;
-    event_resonse_t callback;
+    event_response_t callback;
     void* plugin;
 
     userhook(const userhook_request& req, event_resonse_t callback, void* plugin)
