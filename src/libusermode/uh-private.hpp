@@ -149,7 +149,7 @@ public:
 
     usermode_reg_status_t init(drakvuf_t drakvuf);
     void register_plugin(drakvuf_t drakvuf, usermode_cb_registration reg);
-    void request_usermode_hook(drakvuf_t drakvuf, const dll_t* dll, const userhook_request& target, callback_t callback, void* extra);
+    void request_usermode_hook(drakvuf_t drakvuf, dll_t* dll, const userhook_request& target, callback_t callback, void* extra);
 };
 
 extern userhook_plugin* instance;

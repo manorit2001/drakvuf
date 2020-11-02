@@ -224,7 +224,7 @@ typedef enum usermode_reg_status
 } usermode_reg_status_t;
 
 usermode_reg_status_t drakvuf_register_usermode_callback(drakvuf_t drakvuf, usermode_cb_registration* reg);
-bool drakvuf_request_usermode_hook(drakvuf_t drakvuf, const dll_t* dll, const userhook_request& target, callback_t callback, void* extra);
+bool drakvuf_request_usermode_hook(drakvuf_t drakvuf, dll_t* dll, const userhook_request& target, callback_t callback, void* extra);
 std::vector<userhook_request> drakvuf_load_dll_hook_config(drakvuf_t drakvuf, const char* dll_hooks_list_path, const bool print_no_addr);
 
 #endif
