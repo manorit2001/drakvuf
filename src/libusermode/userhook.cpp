@@ -625,8 +625,8 @@ static event_response_t terminate_process_hook_cb(drakvuf_t drakvuf, drakvuf_tra
             if (hook->state == HOOK_OK)
             {
                 PRINT_DEBUG("[USERHOOK] Erased trap for pid %d %s\n", info->proc_data.pid,
-                            hook->function_name.c_str());
-                drakvuf_remove_trap(drakvuf, hook.trap, NULL);
+                            hook->req.function_name.c_str());
+                drakvuf_remove_trap(drakvuf, hook->trap, NULL);
             }
         }
     }
@@ -710,7 +710,7 @@ static event_response_t copy_on_write_handler(drakvuf_t drakvuf, drakvuf_trap_in
                 addr_t hook_addr = hook->trap->breakpoint.addr;
                 if (hook_addr >> 12 == pa >> 12)
                 {
-                    wanted_hooks.push_back(&hook);
+                    wanted_hooks.push_back(hook);
                 }
             }
         }
@@ -743,7 +743,7 @@ static event_response_t copy_on_write_handler(drakvuf_t drakvuf, drakvuf_trap_in
     return VMI_EVENT_RESPONSE_NONE;
 }
 
-usermode_reg_status_t userhook::init(drakvuf_t drakvuf)
+usermode_reg_status_t userhook_plugin::init(drakvuf_t drakvuf)
 {
     {
         vmi_lock_guard vmi(drakvuf);
@@ -784,7 +784,7 @@ usermode_reg_status_t userhook::init(drakvuf_t drakvuf)
     return USERMODE_REGISTER_SUCCESS;
 }
 
-void userhook::request_usermode_hook(drakvuf_t drakvuf, const dll_t* dll, const userhook_request& target, callback_t callback, void* extra)
+void userhook_plugin::request_usermode_hook(drakvuf_t drakvuf, const dll_t* dll, const userhook_request& target, callback_t callback, void* extra)
 {
     if (target->type == HOOK_BY_NAME)
         p_dll->hooks.emplace_back(target.function_name, target.clsid, callback, extra);
@@ -792,12 +792,12 @@ void userhook::request_usermode_hook(drakvuf_t drakvuf, const dll_t* dll, const 
         p_dll->hooks.emplace_back(target.function_name, target.clsid, target.offset, callback, extra);
 }
 
-void userhook::register_plugin(drakvuf_t drakvuf, usermode_cb_registration reg)
+void userhook_plugin::register_plugin(drakvuf_t drakvuf, usermode_cb_registration reg)
 {
     this->plugins.push_back(reg);
 }
 
-userhook::~userhook()
+userhook_plugin::~userhook_plugin()
 {
     for (auto& it : this->loaded_dlls)
     {
