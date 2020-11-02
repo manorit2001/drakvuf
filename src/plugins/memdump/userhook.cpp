@@ -170,7 +170,7 @@ static void on_dll_discovered(drakvuf_t drakvuf, dll_t* dll, void* extra)
     drakvuf_release_vmi(drakvuf);
 }
 
-static void on_dll_hooked(drakvuf_t drakvuf, dll_t* dll, const std::vector<userhook*>& targets, void* extra)
+static void on_dll_hooked(drakvuf_t drakvuf, dll_t* dll, const std::vector<std::unique_ptr<userhook>>& targets, void* extra)
 {
     PRINT_DEBUG("[MEMDUMP] DLL hooked - done\n");
 }

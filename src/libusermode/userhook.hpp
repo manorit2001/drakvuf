@@ -198,7 +198,7 @@ struct dll_t
     bool is_hooked;
 
     // internal, hooks attached to DLL
-    std::vector<std::unique_ptr<userhook>> hooks;
+    std::vector<userhook> hooks;
 
     // internal, for page faults
     addr_t pf_current_addr;
@@ -206,7 +206,7 @@ struct dll_t
 };
 
 typedef void (*dll_pre_hook_cb)(drakvuf_t, dll_t*, void*);
-typedef void (*dll_post_hook_cb)(drakvuf_t, dll_t*, const std::vector<userhook*>& targets, void*);
+typedef void (*dll_post_hook_cb)(drakvuf_t, dll_t*, const std::vector<std::unique_ptr<userhook>>& targets, void*);
 
 struct usermode_cb_registration
 {
