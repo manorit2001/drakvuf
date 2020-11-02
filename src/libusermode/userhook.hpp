@@ -152,6 +152,9 @@ struct userhook_request
     addr_t offset;
     HookActions actions;
 
+    // make it default constructible for convenience
+    userhook_request() = default;
+
     // HOOK_BY_OFFSET
     userhook_request(std::string&& dll_name, std::string&& function_name, addr_t offset, HookActions hook_actions)
         : dll_name(std::move(dll_name)), type(HOOK_BY_OFFSET), function_name(std::move(function_name)), offset(offset), actions(hook_actions)

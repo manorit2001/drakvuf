@@ -786,10 +786,10 @@ usermode_reg_status_t userhook_plugin::init(drakvuf_t drakvuf)
 
 void userhook_plugin::request_usermode_hook(drakvuf_t drakvuf, const dll_t* dll, const userhook_request& target, callback_t callback, void* extra)
 {
-    if (target->type == HOOK_BY_NAME)
-        p_dll->hooks.emplace_back(target.function_name, target.clsid, callback, extra);
+    if (target.type == HOOK_BY_NAME)
+        dll->hooks.emplace_back(target.function_name, target.clsid, callback, extra);
     else // HOOK_BY_OFFSET
-        p_dll->hooks.emplace_back(target.function_name, target.clsid, target.offset, callback, extra);
+        dll->hooks.emplace_back(target.function_name, target.clsid, target.offset, callback, extra);
 }
 
 void userhook_plugin::register_plugin(drakvuf_t drakvuf, usermode_cb_registration reg)
@@ -805,9 +805,9 @@ userhook_plugin::~userhook_plugin()
         {
             for (auto& hook : loaded_dll.hooks)
             {
-                if (hook.state == HOOK_OK)
+                if (hook->state == HOOK_OK)
                 {
-                    delete hook.trap;
+                    delete hook->trap;
                 }
             }
         }
@@ -820,7 +820,7 @@ usermode_reg_status_t drakvuf_register_usermode_callback(drakvuf_t drakvuf, user
 
     if (!instance)
     {
-        instance = new userhook(drakvuf);
+        instance = new userhook_plugin(drakvuf);
     }
 
     if (!instance->initialized)
