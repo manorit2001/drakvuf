@@ -19,7 +19,7 @@ RUN export INSTALL_PATH="/build/usr" && \
     export LDFLAGS="-L$INSTALL_PATH/lib" && \
     export CFLAGS="-I$INSTALL_PATH/include" && \
     autoreconf -vif && \
-    ./configure --prefix=$INSTALL_PATH --enable-debug && \
+    ./configure --prefix=$INSTALL_PATH --enable-debug --enable-ipt && \
     make -j$(nproc) && \
     make install
 
