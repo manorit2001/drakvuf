@@ -378,7 +378,7 @@ event_response_t ipt_catchall_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 ipt::ipt(drakvuf_t drakvuf, const ipt_config* c, output_format_t output)
     : pluginex(drakvuf, output)
 {
-    for (unsigned int i = 0; i < this->num_vcpus; i++)
+    for (unsigned int i = 0; i < IPT_MAX_VCPUS; i++)
     {
         this->vcpu[i].fd = 0;
     }
