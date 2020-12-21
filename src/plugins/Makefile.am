@@ -337,6 +337,7 @@ AM_CXXFLAGS += -fpie
 AM_LDFLAGS += $(PYTHON_LIBS)
 AM_LDFLAGS += $(PYTHON3_LIBS)
 AM_LDFLAGS += $(PYTHON3_EMBED_LIBS)
+AM_LDFLAGS += -lstdc++fs
 
 all-local:
 	$(CTYPESGEN) $(top_srcdir)/src/libdrakvuf/libdrakvuf.h -I $(AM_CPPFLAGS) -o libdrakvuf.py -l repl -L $(abs_top_srcdir)/src 2> /dev/null
