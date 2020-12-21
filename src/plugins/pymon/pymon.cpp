@@ -139,7 +139,7 @@ pymon::pymon(drakvuf_t drakvuf, const pymon_config& config, output_format_t outp
     : pluginex(drakvuf, output), scripts_dir{config.pymon_dir}
 {
     this->inject_trap.data = static_cast<void*>(this);
-    this->inject_trap.cb = scripts_dir == "" ? &init_scripts : &repl_start;
+    this->inject_trap.cb = scripts_dir == "" ? &repl_start : &init_scripts;
 
     if(!drakvuf_add_trap(drakvuf, &inject_trap))
         throw -1;
