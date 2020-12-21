@@ -113,15 +113,23 @@ static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* inf
 
     python_init(drakvuf, info);
 
+    auto mainModule = PyImport_AddModule("__main__");
+    auto globals = PyModule_GetDict(mainModule);
+
     for (const auto& entry : std::filesystem::directory_iterator(plugin->scripts_dir))
     {
         if (entry.path().extension() != "py")
             continue;
-        
-        auto py_file_obj = PyFile_FromString(entry.path().filename(), "r");
-        auto to_run_script = PyFile_AsFile(py_file_obj);
-        PyRun_SimpleFile(to_run_script, entry.path().filename());
+
+        auto filename = entry.path().filename();
+        PRINT_DEBUG("[PYMON] loading %s", filename);
+
+        auto f = fopen(entry.path().c_str(), "r");
+        PyRun_File(f, filename.c_str(), Py_file_input, globals, globals);
+        fclose(f);
     }
+
+    drakvuf_remove_trap(drakvuf, &inject_trap, nullptr);
 
     return VMI_EVENT_RESPONSE_NONE;
 }
@@ -129,15 +137,9 @@ static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* inf
 pymon::pymon(drakvuf_t drakvuf, const pymon_config& config, output_format_t output)
     : pluginex(drakvuf, output), scripts_dir{config.pymon_dir}
 {
-    drakvuf_trap_t inject_trap =
-    {
-        .type = REGISTER,
-        .reg = CR3,
-        .name = "pymon_cr3",
-        .data = static_cast<void*>(this),
-        .cb = config.pymon_dir ? &init_scripts : &repl_start,
-    };
+    inject_trap.data = static_cast<void*>(this);
+    inject_trap.cb = config.pymon_dir ? &init_scripts : &repl_start;
 
-    if(!drakvuf_add_trap(drakvuf, inject_trap))
+    if(!drakvuf_add_trap(drakvuf, &inject_trap))
         throw -1;
 }
