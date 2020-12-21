@@ -158,10 +158,6 @@ drakvuf_LDADD += plugins/libdrakvufplugins.la
 drakvuf_LDADD += libinjector/libinjector.la
 drakvuf_LDADD += libusermode/libusermode.la
 
-if PLUGIN_PYMON
-drakvuf_CXXFLAGS = $(AM_CXXFLAGS) -fpie
-endif
-
 injector_LDADD = libdrakvuf/libdrakvuf.la
 injector_LDADD += libinjector/libinjector.la
 
