@@ -109,13 +109,13 @@
 
 static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 {
-    auto plugin = get_trap_plugin<pymon>(info);
+    auto plugin = static_cast<pymon*>(info->trap->data);
 
     python_init(drakvuf, info);
 
-    for (const auto& entry : std::filesystem::directory_iterator(path))
+    for (const auto& entry : std::filesystem::directory_iterator(plugin->scripts_dir))
     {
-        if (file.path().extension() != "py")
+        if (entry.path().extension() != "py")
             continue;
         
         auto py_file_obj = PyFile_FromString(entry.filename(), "r");
@@ -133,8 +133,10 @@ pymon::pymon(drakvuf_t drakvuf, const pymon_config& config, output_format_t outp
     {
         .type = REGISTER,
         .reg = CR3,
-        .name = "pymon_cr3"
+        .name = "pymon_cr3",
+        .data = static_cast<void*>(this),
     };
 
-    register_trap(inject_trap, config.pymon_dir ? &init_scripts : &repl_start);
+    if(!drakvuf_add_trap(drakvuf, inject_trap, config.pymon_dir ? &init_scripts : &repl_start))
+        throw -1;
 }
