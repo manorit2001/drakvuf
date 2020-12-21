@@ -130,7 +130,7 @@ static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* inf
         fclose(f);
     }
 
-    drakvuf_remove_trap(drakvuf, &info->trap, nullptr);
+    drakvuf_remove_trap(drakvuf, info->trap, nullptr);
 
     return VMI_EVENT_RESPONSE_NONE;
 }
