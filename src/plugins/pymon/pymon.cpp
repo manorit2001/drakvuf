@@ -120,7 +120,7 @@ static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* inf
     PRINT_DEBUG("[PYMON] scanning directory %s\n", plugin->scripts_dir.c_str());
     for (const auto& entry : std::filesystem::directory_iterator(plugin->scripts_dir))
     {
-        if (entry.path().extension() != "py")
+        if (entry.path().extension() != ".py")
         {
             PRINT_DEBUG("[PYMON] file %s skipped, not a .py file\n", entry.path().c_str());
             continue;
