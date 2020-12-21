@@ -378,7 +378,7 @@ int drakvuf_plugins::start(const drakvuf_plugin_t plugin_id,
                     {
                         .pymon_dir = options->pymon_dir,
                     };
-                    this->plugins[plugin_id] = std::make_unique<pymon>(this->drakvuf, &config, this->output);
+                    this->plugins[plugin_id] = std::make_unique<pymon>(this->drakvuf, config, this->output);
                     break;
                 }
 #endif
