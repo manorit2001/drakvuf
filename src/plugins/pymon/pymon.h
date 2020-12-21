@@ -117,8 +117,6 @@
 
 #pragma once
 
-#include <vector>
-
 #include "plugins/private.h"
 #include "plugins/plugins_ex.h"
 

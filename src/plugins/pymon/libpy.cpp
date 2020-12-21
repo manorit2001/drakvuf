@@ -108,9 +108,9 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-
-#include <librepl/librepl.h>
 #include <Python.h>
+
+#include "libpy.h"
 
 #ifdef DRAKVUF_DEBUG
 #define Py_REF_DEBUG \
