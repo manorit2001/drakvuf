@@ -123,7 +123,7 @@ static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* inf
             continue;
 
         auto filename = entry.path().filename();
-        PRINT_DEBUG("[PYMON] loading %s", filename);
+        PRINT_DEBUG("[PYMON] loading %s", filename.c_str());
 
         auto f = fopen(entry.path().c_str(), "r");
         PyRun_File(f, filename.c_str(), Py_file_input, globals, globals);
