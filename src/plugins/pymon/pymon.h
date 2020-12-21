@@ -131,11 +131,4 @@ public:
     pymon(drakvuf_t drakvuf, const pymon_config& config, output_format_t output);
 
     std::string scripts_dir;
-
-    drakvuf_trap_t inject_trap =
-    {
-        .type = REGISTER,
-        .reg = CR3,
-        .name = "pymon_cr3",
-    };
 };

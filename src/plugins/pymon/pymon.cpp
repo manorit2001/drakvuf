@@ -104,6 +104,7 @@
 
 #include "plugins/output_format.h"
 #include <filesystem>
+#include <Python.h>
 #include "pymon.h"
 #include "libpy.h"
 
@@ -129,7 +130,7 @@ static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* inf
         fclose(f);
     }
 
-    drakvuf_remove_trap(drakvuf, &inject_trap, nullptr);
+    drakvuf_remove_trap(drakvuf, &info->trap, nullptr);
 
     return VMI_EVENT_RESPONSE_NONE;
 }
@@ -137,8 +138,14 @@ static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* inf
 pymon::pymon(drakvuf_t drakvuf, const pymon_config& config, output_format_t output)
     : pluginex(drakvuf, output), scripts_dir{config.pymon_dir}
 {
-    inject_trap.data = static_cast<void*>(this);
-    inject_trap.cb = config.pymon_dir ? &init_scripts : &repl_start;
+    drakvuf_trap_t inject_trap =
+    {
+        .type = REGISTER,
+        .reg = CR3,
+        .name = "pymon_cr3",
+        .data = static_cast<void*>(this),
+        .cb = config.pymon_dir ? &init_scripts : &repl_start,
+    };
 
     if(!drakvuf_add_trap(drakvuf, &inject_trap))
         throw -1;
