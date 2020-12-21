@@ -141,10 +141,19 @@ static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* inf
 }
 
 pymon::pymon(drakvuf_t drakvuf, const pymon_config& config, output_format_t output)
-    : pluginex(drakvuf, output), scripts_dir{config.pymon_dir}
+    : pluginex(drakvuf, output)
 {
     this->inject_trap.data = static_cast<void*>(this);
-    this->inject_trap.cb = scripts_dir == "" ? &repl_start : &init_scripts;
+
+    if (config.pymon_dir)
+    {
+        this->scripts_dir = config.pymon_dir;
+        this->inject_trap.cb = &init_scripts;
+    }
+    else
+    {
+        this->inject_trap.cb = &repl_start;
+    }
 
     if(!drakvuf_add_trap(drakvuf, &inject_trap))
         throw -1;

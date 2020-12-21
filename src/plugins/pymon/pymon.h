@@ -122,7 +122,7 @@
 
 struct pymon_config
 {
-    const char* pymon_dir = "";
+    const char* pymon_dir;
 };
 
 class pymon : public pluginex
