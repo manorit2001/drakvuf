@@ -122,7 +122,7 @@ static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* inf
     {
         if (entry.path().extension() != "py")
         {
-            PRINT_DEBUG("[PYMON] file %s skipped, not a .py file", entry.path().c_str());
+            PRINT_DEBUG("[PYMON] file %s skipped, not a .py file\n", entry.path().c_str());
             continue;
         }
 
