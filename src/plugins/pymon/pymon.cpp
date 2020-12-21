@@ -106,7 +106,7 @@
 #include "pymon.h"
 #include "libpy.h"
 
-static void event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
+static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 {
     auto plugin = get_trap_plugin<pymon>(info);
 
