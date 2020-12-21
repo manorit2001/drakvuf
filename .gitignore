@@ -47,5 +47,5 @@ src/dirwatch/distributor
 test-drive
 ylwrap
 
-# librepl
-src/librepl/libdrakvuf.py
+# pymon
+libdrakvuf.py
