@@ -103,6 +103,7 @@
  ***************************************************************************/
 
 #include "plugins/output_format.h"
+#include <filesystem>
 #include "pymon.h"
 #include "libpy.h"
 
@@ -112,7 +113,7 @@ static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* inf
 
     python_init(drakvuf, info);
 
-    for (const auto& entry : fs::directory_iterator(path))
+    for (const auto& entry : std::filesystem::directory_iterator(path))
     {
         if (file.path().extension() != "py")
             continue;
@@ -125,7 +126,7 @@ static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* inf
     return VMI_EVENT_RESPONSE_NONE;
 }
 
-tlsmon::tlsmon(drakvuf_t drakvuf, const pymon_config& config, output_format_t output)
+pymon::pymon(drakvuf_t drakvuf, const pymon_config& config, output_format_t output)
     : pluginex(drakvuf, output), scripts_dir{config.pymon_dir}
 {
     drakvuf_trap_t inject_trap =

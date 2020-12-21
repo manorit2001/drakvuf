@@ -111,6 +111,7 @@
 #include <Python.h>
 
 #include "libpy.h"
+#include "plugins/private.h"
 
 #ifdef DRAKVUF_DEBUG
 #define Py_REF_DEBUG \
