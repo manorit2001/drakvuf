@@ -279,6 +279,8 @@ endif
 if PLUGIN_PYMON
 sources += pymon/pymon.h
 sources += pymon/pymon.cpp
+sources += pymon/libpy.h
+sources += pymon/libpy.cpp
 endif
 
 ###############################################################################
