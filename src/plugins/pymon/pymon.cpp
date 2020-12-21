@@ -144,7 +144,7 @@ pymon::pymon(drakvuf_t drakvuf, const pymon_config& config, output_format_t outp
         .reg = CR3,
         .name = "pymon_cr3",
         .data = static_cast<void*>(this),
-        .cb = config.pymon_dir ? &init_scripts : &repl_start,
+        .cb = scripts_dir == "" ? &init_scripts : &repl_start,
     };
 
     if(!drakvuf_add_trap(drakvuf, &inject_trap))
