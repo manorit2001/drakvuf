@@ -117,6 +117,7 @@ static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* inf
     auto mainModule = PyImport_AddModule("__main__");
     auto globals = PyModule_GetDict(mainModule);
 
+    PRINT_DEBUG("[PYMON] scanning directory %s", plugin->scripts_dir);
     for (const auto& entry : std::filesystem::directory_iterator(plugin->scripts_dir))
     {
         if (entry.path().extension() != "py")
@@ -132,6 +133,7 @@ static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* inf
 
     drakvuf_remove_trap(drakvuf, info->trap, nullptr);
 
+    PRINT_DEBUG("[PYMON] Finished loading all scripts");
     return VMI_EVENT_RESPONSE_NONE;
 }
 
