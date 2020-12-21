@@ -105,13 +105,8 @@
 #include <unistd.h>
 #include <limits.h>
 
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <Python.h>
-
 #include "libpy.h"
-#include "plugins/private.h"
+#include "userhooks.h"
 
 #ifdef DRAKVUF_DEBUG
 #define Py_REF_DEBUG \
@@ -121,6 +116,9 @@
 #else
 #define Py_REF_DEBUG
 #endif
+
+// init drakvuf only once
+static drakvuf_t g_drakvuf;
 
 static std::string get_selfpath()
 {
@@ -149,6 +147,19 @@ static event_response_t get_ret_val()
 
 void python_init(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 {
+    if(g_drakvuf)
+        return;
+
+    g_drakvuf = drakvuf;
+
+    usermode_cb_registration reg =
+    {
+        .pre_cb = on_dll_discovered,
+        .post_cb = on_dll_hooked
+    };
+
+    drakvuf_register_usermode_callback(drakvuf, &reg);
+
     // init python
     Py_Initialize();
 
@@ -189,6 +200,8 @@ void python_init(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
         ss << "repl_start = cast(" << reinterpret_cast<void*>(repl_start) << ", trap_cb)\n";
         ss << "drakvuf = cast(" << reinterpret_cast<void*>(drakvuf) << ", libdrakvuf.drakvuf_t)\n";
         ss << "retval = " << reinterpret_cast<int>(VMI_EVENT_RESPONSE_NONE) << "\n";
+        ss << "add_usermode_hook = cast(" << reinterpret_cast<void*>(add_usermode_hook) << ", CFUNCTYPE(c_int, c_char_p, c_char_p, trap_cb))\n";
+        ss << "read_str = cast(" << reinterpret_cast<void*>(read_str) << ", CFUNCTYPE(c_char_p, libdrakvuf.drakvuf_t, POINTER(libdrakvuf.drakvuf_trap_info_t), libdrakvuf.addr_t))\n";
 
         PRINT_DEBUG("setting up variables:\n%s", ss.str().c_str());
 
