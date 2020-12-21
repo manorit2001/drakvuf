@@ -154,7 +154,7 @@ void python_init(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 
     // get executable path
     auto exe_path = get_selfpath();
-    auto py_drakvuf_path = exe_path.substr(0, exe_path.find_last_of('/')) + "/drakvuf";
+    auto py_drakvuf_path = exe_path.substr(0, exe_path.find_last_of('/'));
     PRINT_DEBUG("PyDrakvuf path: %s\n", py_drakvuf_path.c_str());
 
     // load libdrakvuf
