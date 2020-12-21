@@ -118,9 +118,9 @@ static event_response_t init_scripts(drakvuf_t drakvuf, drakvuf_trap_info_t* inf
         if (entry.path().extension() != "py")
             continue;
         
-        auto py_file_obj = PyFile_FromString(entry.filename(), "r");
+        auto py_file_obj = PyFile_FromString(entry.path().filename(), "r");
         auto to_run_script = PyFile_AsFile(py_file_obj);
-        PyRun_SimpleFile(to_run_script, entry.filename());
+        PyRun_SimpleFile(to_run_script, entry.path().filename());
     }
 
     return VMI_EVENT_RESPONSE_NONE;
@@ -135,8 +135,9 @@ pymon::pymon(drakvuf_t drakvuf, const pymon_config& config, output_format_t outp
         .reg = CR3,
         .name = "pymon_cr3",
         .data = static_cast<void*>(this),
+        .cb = config.pymon_dir ? &init_scripts : &repl_start,
     };
 
-    if(!drakvuf_add_trap(drakvuf, inject_trap, config.pymon_dir ? &init_scripts : &repl_start))
+    if(!drakvuf_add_trap(drakvuf, inject_trap))
         throw -1;
 }

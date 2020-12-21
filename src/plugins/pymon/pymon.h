@@ -130,6 +130,5 @@ class pymon : public pluginex
 public:
     pymon(drakvuf_t drakvuf, const pymon_config& config, output_format_t output);
 
-private:
     std::string scripts_dir;
 };
