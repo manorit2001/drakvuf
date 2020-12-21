@@ -103,7 +103,6 @@
  ***************************************************************************/
 
 #include "plugins/output_format.h"
-#include <librepl/librepl.h>
 #include "pymon.h"
 #include "libpy.h"
 
