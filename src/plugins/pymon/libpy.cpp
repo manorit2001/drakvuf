@@ -134,7 +134,7 @@ static std::string get_selfpath()
     else
     {
         PRINT_DEBUG("failed to get executable path!");
-        exit(1);
+        throw -1;
     }
 }
 
@@ -165,7 +165,7 @@ void python_init(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
     if (module == NULL)
     {
         std::cout << "No libdrakvuf.py found, please generate it before running REPL\n";
-        exit(1);
+        throw -1;
     }
 
     // import modules
@@ -173,7 +173,7 @@ void python_init(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
     {
         std::cout << "Failed to load one of dependencies\n";
         PyErr_Print();
-        exit(1);
+        throw -1;
     }
 
     PyObject_SetAttrString(module, "drakvuf", PyLong_FromVoidPtr(static_cast<void*>(drakvuf)));
