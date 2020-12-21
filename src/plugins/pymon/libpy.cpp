@@ -169,7 +169,7 @@ void python_init(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
     }
 
     // import modules
-    if (PyRun_SimpleString("from ctypes import *\nimport IPython\nimport libdrakvuf\n") == -1)
+    if (PyRun_SimpleString("from ctypes import *\nimport libdrakvuf\n") == -1)
     {
         std::cout << "Failed to load one of dependencies\n";
         PyErr_Print();
@@ -204,14 +204,24 @@ event_response_t repl_start(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
               << "REPL STARTING...\n"
               << "=================================================================\n";
 
-    PyRun_SimpleString(
-        "IPython.embed(colors='neutral', banner2=\"\"\""
-        "REPL ready to go, enjoy hacking!\n"
-        "trap_info contains current trap info structure\n"
-        "drakvuf contains drakvuf_t pointer\n"
-        "retval contains event return code, which you can overwrite\n"
-        "to go back to drakvuf loop use exit(), to break loop use CTRL+C\"\"\")\n"
-    );
+    if (PyRun_SimpleString("import IPython\n") == -1)
+    {
+        std::cout << "error importing IPython, please install before running REPL\n";
+        throw -1;
+        //TODO: implement fallback to ipython
+        //PRINT_DEBUG("[REPL] loading IPython failed, falling back to regular shell\n");
+    }
+    else
+    {
+        PyRun_SimpleString(
+            "IPython.embed(colors='neutral', banner2=\"\"\""
+            "REPL ready to go, enjoy hacking!\n"
+            "trap_info contains current trap info structure\n"
+            "drakvuf contains drakvuf_t pointer\n"
+            "retval contains event return code, which you can overwrite\n"
+            "to go back to drakvuf loop use exit(), to break loop use CTRL+C\"\"\")\n"
+        );
+    }
 
     return get_ret_val();
 }
