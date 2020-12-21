@@ -388,14 +388,17 @@ if test x$plugin_tlsmon = xyes; then
   AC_DEFINE_UNQUOTED(ENABLE_PLUGIN_TLSMON, 1, "")
 fi
 
-#####################################################
+AC_ARG_ENABLE([plugin_pymon],
+  [AS_HELP_STRING([--enable-plugin-pymon],
+    [Enable python plugins and REPL @<:@no@:>@])],
+  [plugin_pymon="$enableval"],
+  [plugin_pymon="no"])
+AM_CONDITIONAL([PLUGIN_PYMON], [test x$plugin_pymon = xyes])
+if test x$plugin_pymon = xyes; then
+  AC_DEFINE_UNQUOTED(ENABLE_PLUGIN_PYMON, 1, "")
+fi
 
-AC_ARG_ENABLE([repl],
-  [AS_HELP_STRING([--enable-repl],
-    [Enable the repl library @<:@no@:>@])],
-  [repl="$enableval"],
-  [repl="no"])
-AM_CONDITIONAL([REPL], [test x$repl = xyes])
+#####################################################
 
 AC_ARG_ENABLE([hardening],
   [AS_HELP_STRING([--enable-hardening],
@@ -594,7 +597,7 @@ PKG_CHECK_MODULES([LIBXL], [xenlight], [], [AC_ERROR([libxl not found])])
 PKG_CHECK_MODULES([XENFMEM], [xenforeignmemory], [], [AC_ERROR([xenforeignmemory not found])])
 PKG_CHECK_MODULES([XENTOOLLOG], [xentoollog], [], [AC_ERROR([xentoollog not found])])
 
-if test x$repl = xyes; then
+if test x$plugin_pymon = xyes; then
   PKG_CHECK_MODULES([PYTHON3], [python3])
   PKG_CHECK_MODULES([PYTHON3_EMBED], [python3-embed], [], [AC_MSG_NOTICE(python3-embed not found)])
   AC_PATH_PROG(PYTHON3, python3, nopython)
@@ -612,8 +615,6 @@ if test x$repl = xyes; then
   AS_IF([test x"$CTYPESGEN" = x],
     AC_MSG_ERROR([could not find ctypesgen])
   )
-
-  AC_DEFINE_UNQUOTED(ENABLE_REPL, 1, "")
 fi
 
 #####################################################
@@ -625,7 +626,6 @@ AC_CONFIG_FILES([Makefile src/Makefile
                  src/plugins/Makefile
                  src/dirwatch/Makefile
                  src/libusermode/Makefile
-                 src/librepl/Makefile
                ])
 
 AC_OUTPUT
@@ -663,9 +663,8 @@ ProcDump:     $plugin_procdump
 APIMon:       $plugin_apimon
 RPCMon:       $plugin_rpcmon
 TLSMon:       $plugin_tlsmon
+PyMon:        $plugin_pymon
 -------------------------------------------------------------------------------
 Deprecated Plugins
 WMIMon:       $plugin_wmimon
--------------------------------------------------------------------------------
-REPL:         $repl
 -------------------------------------------------------------------------------])

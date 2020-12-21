@@ -102,118 +102,115 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <errno.h>
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
 #include <unistd.h>
+#include <limits.h>
 
-#include <libvmi/libvmi.h>
+#include <iostream>
+#include <sstream>
+#include <string>
+
 #include <librepl/librepl.h>
-#include <libdrakvuf/libdrakvuf.h>
+#include <Python.h>
 
-static drakvuf_t drakvuf;
-
-static void close_handler(int sig)
-{
-    drakvuf_interrupt(drakvuf, sig);
-}
-
-static inline void print_help(void)
-{
-    fprintf(stderr, "Required input:\n"
-            "\t -r <path to json>         The OS kernel's JSON\n"
-            "\t -d <domain ID or name>    The domain's ID or name\n"
 #ifdef DRAKVUF_DEBUG
-            "\t -v                        Turn on verbose (debug) output\n"
+#define Py_REF_DEBUG \
+    PyObject* refCount = PyObject_CallObject(PySys_GetObject("gettotalrefcount"), NULL); \
+    PRINT_DEBUG("total refcount = %i\n", PyInt_AsSsize_t(refCount)); \
+    Py_DECREF(refCount);
+#else
+#define Py_REF_DEBUG
 #endif
-            "\t -l                        Use libvmi.conf\n"
-            "\t -k <kpgd value>           Use provided KPGD value for faster and more robust startup (advanced)\n"
-           );
+
+static std::string get_selfpath()
+{
+    char buf[PATH_MAX];
+    ssize_t len = ::readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    if (len != -1)
+    {
+        buf[len] = '\0';
+        return std::string(buf);
+    }
+    else
+    {
+        PRINT_DEBUG("failed to get executable path!");
+        exit(1);
+    }
 }
 
-static bool is_interrupted(drakvuf_t drakvuf, void*)
+static event_response_t get_ret_val()
 {
-    return drakvuf_is_interrupted(drakvuf);
+    // Using PyEval_GetGlobals would probably be nicer, but it returned nullptr
+    auto module = PyImport_AddModule("__main__");
+    auto retval = PyLong_AsSize_t(PyObject_GetAttrString(module, "retval"));
+    PRINT_DEBUG("retval: %lu\n", retval);
+    return static_cast<event_response_t>(retval);
 }
 
-int main(int argc, char** argv)
+void python_init(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 {
-    int return_code = 0;
-    char c;
-    char* json_kernel_path = NULL;
-    char* domain = NULL;
-    bool libvmi_conf = false;
-    bool verbose = 0;
-    addr_t kpgd = 0;
+    // init python
+    Py_Initialize();
 
-    if (argc < 4)
+    // get executable path
+    auto exe_path = get_selfpath();
+    auto py_drakvuf_path = exe_path.substr(0, exe_path.find_last_of('/')) + "/librepl";
+    PRINT_DEBUG("PyDrakvuf path: %s\n", py_drakvuf_path.c_str());
+
+    // load libdrakvuf
+    auto sysPath = PySys_GetObject("path");
+    PyList_Append(sysPath, PyUnicode_FromString(py_drakvuf_path.c_str()));
+    auto module = PyImport_ImportModule("libdrakvuf");
+
+    if (module == NULL)
     {
-        print_help();
-        return 1;
+        std::cout << "No libdrakvuf.py found, please generate it before running REPL\n";
+        exit(1);
     }
 
-    while ((c = getopt (argc, argv, "r:d:i:I:e:m:B:P:f:k:vlg")) != -1)
-        switch (c)
-        {
-            case 'r':
-                json_kernel_path = optarg;
-                break;
-            case 'd':
-                domain = optarg;
-                break;
-#ifdef DRAKVUF_DEBUG
-            case 'v':
-                verbose = 1;
-                break;
-#endif
-            case 'l':
-                libvmi_conf = true;
-                break;
-            case 'k':
-                kpgd = strtoull(optarg, NULL, 0);
-                break;
-            default:
-                fprintf(stderr, "Unrecognized option: %c\n", c);
-                return return_code;
-        }
-
-    if ( !json_kernel_path || !domain )
+    // import modules
+    if (PyRun_SimpleString("from ctypes import *\nimport IPython\nimport libdrakvuf\n") == -1)
     {
-        print_help();
-        return 1;
+        std::cout << "Failed to load one of dependencies\n";
+        PyErr_Print();
+        exit(1);
     }
 
-    /* for a clean exit */
-    struct sigaction act;
-    act.sa_handler = close_handler;
-    act.sa_flags = 0;
-    sigemptyset(&act.sa_mask);
-    sigaction(SIGHUP, &act, NULL);
-    sigaction(SIGTERM, &act, NULL);
-    sigaction(SIGINT, &act, NULL);
-    sigaction(SIGALRM, &act, NULL);
+    PyObject_SetAttrString(module, "drakvuf", PyLong_FromVoidPtr(static_cast<void*>(drakvuf)));
 
-    if (!drakvuf_init(&drakvuf, domain, json_kernel_path, NULL, verbose, libvmi_conf, kpgd, false))
     {
-        fprintf(stderr, "Failed to initialize on domain %s\n", domain);
-        return 1;
+        std::stringstream ss;
+
+        // convenient variable assignment
+        ss << "trap_info = cast(" << static_cast<void*>(info) << ", POINTER(libdrakvuf.drakvuf_trap_info_t))\n";
+
+        // pass repl_start to python
+        ss << "trap_cb = CFUNCTYPE(libdrakvuf.event_response_t, libdrakvuf.drakvuf_t, POINTER(libdrakvuf.drakvuf_trap_info_t))\n";
+        ss << "repl_start = cast(" << reinterpret_cast<void*>(repl_start) << ", trap_cb)\n";
+        ss << "drakvuf = cast(" << reinterpret_cast<void*>(drakvuf) << ", libdrakvuf.drakvuf_t)\n";
+        ss << "retval = " << reinterpret_cast<int>(VMI_EVENT_RESPONSE_NONE) << "\n";
+
+        PRINT_DEBUG("setting up variables:\n%s", ss.str().c_str());
+
+        PyRun_SimpleString(ss.str().c_str());
     }
+}
 
-    drakvuf_trap_t inject_trap =
-    {
-        .type = REGISTER,
-        .reg = CR3,
-        .cb = &repl_start,
-        .name = "repl_trap"
-    };
+event_response_t repl_start(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
+{
+    python_init(drakvuf, info);
 
-    if (!drakvuf_add_trap(drakvuf, &inject_trap))
-        throw -1;
+    std::cout << "=================================================================\n"
+              << "REPL STARTING...\n"
+              << "=================================================================\n";
 
-    if (!drakvuf_is_interrupted(drakvuf))
-        drakvuf_loop(drakvuf, is_interrupted, nullptr);
+    PyRun_SimpleString(
+        "IPython.embed(colors='neutral', banner2=\"\"\""
+        "REPL ready to go, enjoy hacking!\n"
+        "trap_info contains current trap info structure\n"
+        "drakvuf contains drakvuf_t pointer\n"
+        "retval contains event return code, which you can overwrite\n"
+        "to go back to drakvuf loop use exit(), to break loop use CTRL+C\"\"\")\n"
+    );
 
-    return return_code;
+    return get_ret_val();
 }

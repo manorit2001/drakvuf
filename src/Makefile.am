@@ -158,23 +158,11 @@ drakvuf_LDADD += plugins/libdrakvufplugins.la
 drakvuf_LDADD += libinjector/libinjector.la
 drakvuf_LDADD += libusermode/libusermode.la
 
+if PLUGIN_PYMON
+drakvuf_CXXFLAGS = $(AM_CXXFLAGS) -fpie
+endif
+
 injector_LDADD = libdrakvuf/libdrakvuf.la
 injector_LDADD += libinjector/libinjector.la
 
 proc_stat_LDADD = libdrakvuf/libdrakvuf.la
-
-if REPL
-bin_PROGRAMS += repl
-
-SUBDIRS += librepl
-
-repl_SOURCES = repl.cpp
-
-drakvuf_LDADD += librepl/librepl.la
-
-repl_LDADD = librepl/librepl.la
-repl_LDADD += libdrakvuf/libdrakvuf.la
-
-repl_CXXFLAGS = $(AM_CXXFLAGS) -fpie
-repl_LDFLAGS = $(AM_LDFLAGS) -Wl,-E
-endif

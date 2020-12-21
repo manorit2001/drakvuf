@@ -102,20 +102,37 @@
  *                                                                         *
  ***************************************************************************/
 
+/**
+ * General pymon plugin description:
+ * This plugin has 2 runtimes:
+ *
+ *  - REPL (when scripts directory is not provided)
+ *  in this setup pymon will create a CR3 trap and pass control to python
+ *
+ *  - PluginLauncher (when scripts directory is provided)
+ *  in this setup pymon will create a CR3 trap, load all python scripts
+ *  from provided directory and return from trap, which enables drakvuf
+ *  plugin functionality to be written using python instead of C/C++
+ */
+
 #pragma once
 
-#include <libdrakvuf/libdrakvuf.h>
+#include <vector>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "plugins/private.h"
+#include "plugins/plugins_ex.h"
 
-/**
- * @param drakvuf - drakvuf instance
- * @param info - trap info
- */
-event_response_t repl_start(drakvuf_t drakvuf, drakvuf_trap_info_t* info);
-
-#ifdef __cplusplus
+struct pymon_config
+{
+    const char* pymon_dir;
 }
-#endif
+
+class pymon : public pluginex
+{
+public:
+    pymon(drakvuf_t drakvuf, const pymon_config& config, output_format_t output);
+    ~pymon();
+
+private:
+    std::string scripts_dir;
+};

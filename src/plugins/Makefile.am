@@ -276,6 +276,11 @@ sources += tlsmon/tlsmon.h
 sources += tlsmon/private.h
 endif
 
+if PLUGIN_PYMON
+sources += pymon/pymon.h
+sources += pymon/pymon.cpp
+endif
+
 ###############################################################################
 sources += plugins.cpp plugins.h plugins_ex.cpp plugins_ex.h plugin_utils.cpp plugin_utils.h private.h type_traits_helpers.h
 sources += output_format.h output_format/common.h output_format/csvfmt.h output_format/deffmt.h output_format/jsonfmt.h output_format/kvfmt.h
@@ -319,6 +324,20 @@ AM_CXXFLAGS += -Wcast-qual -Wcast-align -Wstrict-aliasing \
 if !HARDENING
 AM_CXXFLAGS += -pg
 endif
+endif
+
+if PLUGIN_PYMON
+AM_CPPFLAGS += $(PYTHON_CFLAGS)
+AM_CPPFLAGS += $(PYTHON3_CFLAGS)
+AM_CPPFLAGS += $(PYTHON3_EMBED_CFLAGS)
+AM_CXXFLAGS += -fpie
+
+AM_LDFLAGS += $(PYTHON_LIBS)
+AM_LDFLAGS += $(PYTHON3_LIBS)
+AM_LDFLAGS += $(PYTHON3_EMBED_LIBS)
+
+all-local:
+	$(CTYPESGEN) $(top_srcdir)/src/libdrakvuf/libdrakvuf.h -I $(AM_CPPFLAGS) -o libdrakvuf.py -l repl -L $(abs_top_srcdir)/src 2> /dev/null
 endif
 
 noinst_LTLIBRARIES= libdrakvufplugins.la

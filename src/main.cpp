@@ -251,6 +251,11 @@ static void print_usage()
             "\t --compress-procdumps\n"
             "\t                           Controls compression of processes dumps on disk\n"
 #endif
+#ifdef ENABLE_PLUGIN_PYMON
+            "\t --pymon-dir <directory>\n"
+            "\t                           (optional) if present, will load all scripts from dir\n"
+            "\t                           if not present will start REPL\n"
+#endif
             "\t -h, --help                Show this help\n"
            );
 }
@@ -322,6 +327,7 @@ int main(int argc, char** argv)
         opt_userhook_no_addr,
         opt_terminate,
         opt_termination_timeout,
+        opt_pymon_dir,
     };
     const option long_opts[] =
     {
@@ -354,6 +360,7 @@ int main(int argc, char** argv)
         {"disable-sysret", no_argument, NULL, opt_disable_sysret},
         {"userhook-no-addr", no_argument, NULL, opt_userhook_no_addr},
         {"fast-singlestep", no_argument, NULL, 'F'},
+        {"pymon-dir", required_argument, NULL, opt_pymon_dir},
         {NULL, 0, NULL, 0}
     };
     const char* opts = "r:d:i:I:e:m:t:D:o:vx:a:f:spT:S:Mc:nblgj:k:w:W:hF";
@@ -545,6 +552,11 @@ int main(int argc, char** argv)
                 break;
             case opt_compress_procdumps:
                 options.compress_procdumps = true;
+                break;
+#endif
+#ifdef ENABLE_PLUGIN_PYMON
+            case opt_pymon_dir:
+                options.pymon_dir = optarg;
                 break;
 #endif
             case 'h':
