@@ -368,10 +368,10 @@ public:
     };
 
     // Params property is optional
-    template<typename Params = void, typename IB>
+    template<typename Params = void, typename IB = void>
     drakvuf_trap_t* register_trap(drakvuf_trap_info_t* info,
                                   hook_cb_t hook_cb,
-                                  IB init_breakpoint,
+                                  IB init_breakpoint = nullptr,
                                   const char* trap_name = nullptr)
     {
         auto trap = new drakvuf_trap_t;
@@ -390,11 +390,15 @@ public:
         trap->cb = hook_cb;
         trap->type = BREAKPOINT;
 
-        if (!init_breakpoint(drakvuf, info, trap))
+        if constexpr (!std::is_same_v<IB, void>)
         {
-            PRINT_DEBUG("%s for %s\n", ERROR_MSG_ADDING_TRAP, trap_name ? trap_name : trap->name);
-            delete trap;
-            return nullptr;
+            if (!init_breakpoint(drakvuf, info, trap))
+            {
+                PRINT_DEBUG("%s for %s\n", ERROR_MSG_ADDING_TRAP, trap_name ? trap_name : trap->name);
+                delete trap;
+                return nullptr;
+            }
+            // else we expect the trap to be already configured
         }
 
         traps.push_back(std::move(trap));
