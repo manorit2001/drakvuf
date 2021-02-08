@@ -1359,6 +1359,7 @@ void drakvuf_loop(drakvuf_t drakvuf, bool (*is_interrupted)(drakvuf_t, void*), v
 
 bool init_vmi(drakvuf_t drakvuf, bool libvmi_conf, bool fast_singlestep)
 {
+    UNUSED(fast_singlestep);
 
     int rc;
     uint64_t flags = VMI_OS_WINDOWS == drakvuf->os ? VMI_PM_INITFLAG_TRANSITION_PAGES : 0;
