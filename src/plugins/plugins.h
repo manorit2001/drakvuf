@@ -156,7 +156,9 @@ struct plugins_options
     bool codemon_dump_vad;              // PLUGIN_CODEMON
     bool codemon_analyse_system_dll_vad;    // PLUGIN_CODEMON
     bool codemon_default_benign;        // PLUGIN_CODEMON
-
+    const char* ipt_dir;                // PLUGIN_IPT
+    bool ipt_trace_os;                  // PLUGIN_IPT
+    bool ipt_trace_user;                // PLUGIN_IPT
 };
 
 typedef enum drakvuf_plugin
@@ -188,6 +190,7 @@ typedef enum drakvuf_plugin
     PLUGIN_RPCMON,
     PLUGIN_TLSMON,
     PLUGIN_CODEMON,
+    PLUGIN_IPT,
     __DRAKVUF_PLUGIN_LIST_MAX
 } drakvuf_plugin_t;
 
@@ -220,6 +223,7 @@ static const char* drakvuf_plugin_names[] =
     [PLUGIN_RPCMON] = "rpcmon",
     [PLUGIN_TLSMON] = "tlsmon",
     [PLUGIN_CODEMON] = "codemon",
+    [PLUGIN_IPT] = "ipt",
 };
 
 static const bool drakvuf_plugin_os_support[__DRAKVUF_PLUGIN_LIST_MAX][VMI_OS_WINDOWS+1] =
@@ -251,6 +255,7 @@ static const bool drakvuf_plugin_os_support[__DRAKVUF_PLUGIN_LIST_MAX][VMI_OS_WI
     [PLUGIN_RPCMON]       = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
     [PLUGIN_TLSMON]       = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
     [PLUGIN_CODEMON]      = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 0 },
+    [PLUGIN_IPT]          = { [VMI_OS_WINDOWS] = 1, [VMI_OS_LINUX] = 1 },
 };
 
 class plugin
