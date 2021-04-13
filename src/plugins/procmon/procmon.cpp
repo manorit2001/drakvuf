@@ -164,6 +164,21 @@ struct process_create_ex_result_t: public call_result_t
     uint32_t job_member_level;
 };
 
+struct process_create_result_t: public call_result_t
+{
+    process_create_result_t() : call_result_t(), process_handle_addr(), desired_access(), object_attributes_addr(), parent_process(), inherit_object_table(), section_handle(), debug_port(), exception_port() {}
+
+    addr_t process_handle_addr;
+    uint32_t desired_access;
+    addr_t object_attributes_addr;
+    uint64_t parent_process;
+    bool inherit_object_table;
+    uint64_t section_handle;
+    uint64_t debug_port;
+    uint64_t exception_port;
+};
+
+
 struct process_visitor_ctx
 {
     output_format_t format;
@@ -371,6 +386,52 @@ static event_response_t process_create_ex_return_hook(drakvuf_t drakvuf, drakvuf
     return VMI_EVENT_RESPONSE_NONE;
 }
 
+static event_response_t process_create_return_hook(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
+{
+    auto plugin = get_trap_plugin<procmon>(info);
+    auto params = get_trap_params<process_create_result_t>(info);
+
+    if (!params->verify_result_call_params(drakvuf, info))
+        return VMI_EVENT_RESPONSE_NONE;
+
+    addr_t process_handle_addr = params->process_handle_addr;
+    reg_t status = info->regs->rax;
+
+    ACCESS_CONTEXT(ctx,
+        .translate_mechanism = VMI_TM_PROCESS_DTB,
+        .dtb = info->regs->cr3,
+        .addr = process_handle_addr,
+    );
+
+    addr_t process_handle;
+    vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
+    if (VMI_FAILURE == vmi_read_addr(vmi, &ctx, &process_handle))
+        process_handle = 0;
+
+    drakvuf_release_vmi(drakvuf);
+
+    vmi_pid_t new_pid;
+    if (!drakvuf_get_pid_from_handle(drakvuf, info, process_handle, &new_pid))
+        new_pid = 0;
+
+    fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
+        keyval("Status", fmt::Xval(status)),
+        keyval("ProcessHandle", fmt::Xval(process_handle)),
+        keyval("DesiredAccess", fmt::Xval(params->desired_access)),
+        keyval("ObjectAttributes", fmt::Xval(params->object_attributes_addr)),
+        keyval("ParentProcess", fmt::Xval(params->parent_process)),
+        keyval("InheritObjectTable", fmt::Xval(params->inherit_object_table)),
+        keyval("SectionHandle", fmt::Xval(params->section_handle)),
+        keyval("DebugPort", fmt::Xval(params->debug_port)),
+        keyval("ExceptionPort", fmt::Xval(params->exception_port)),
+        keyval("NewPid", fmt::Nval(new_pid))
+    );
+
+    plugin->destroy_trap(info->trap);
+    return VMI_EVENT_RESPONSE_NONE;
+}
+
+
 static event_response_t create_user_process_hook(
     drakvuf_t drakvuf, drakvuf_trap_info_t* info,
     addr_t process_handle_addr,
@@ -424,6 +485,37 @@ static event_response_t create_process_ex_hook(
     return VMI_EVENT_RESPONSE_NONE;
 }
 
+static event_response_t create_process_hook(
+    drakvuf_t drakvuf, drakvuf_trap_info_t* info,
+    addr_t process_handle_addr,
+    uint32_t desired_access,
+    addr_t object_attributes_addr,
+    uint64_t parent_process,
+    bool inherit_object_table,
+    uint64_t section_handle,
+    uint64_t debug_port,
+    uint64_t exception_port)
+{
+    auto plugin = get_trap_plugin<procmon>(info);
+    auto trap = plugin->register_trap<process_create_result_t>(
+            info,
+            process_create_return_hook,
+            breakpoint_by_pid_searcher());
+
+    auto params = get_trap_params<process_create_result_t>(trap);
+
+    params->set_result_call_params(info);
+    params->process_handle_addr = process_handle_addr;
+    params->desired_access = desired_access;
+    params->object_attributes_addr = object_attributes_addr;
+    params->parent_process = parent_process;
+    params->inherit_object_table = inherit_object_table;
+    params->section_handle = section_handle;
+    params->debug_port = debug_port;
+    params->exception_port = exception_port;
+    return VMI_EVENT_RESPONSE_NONE;
+}
+
 static event_response_t terminate_process_hook(
     drakvuf_t drakvuf, drakvuf_trap_info_t* info,
     addr_t process_handle, addr_t exit_status)
@@ -471,6 +563,20 @@ static event_response_t create_process_ex_hook_cb(drakvuf_t drakvuf, drakvuf_tra
     uint64_t exception_port  = drakvuf_get_function_argument(drakvuf, info, 8);
     uint32_t job_member_level  = drakvuf_get_function_argument(drakvuf, info, 9);
     return create_process_ex_hook(drakvuf, info, process_handle_addr, desired_access, object_attributes_addr, parent_process, flags, section_handle, debug_port, exception_port, job_member_level);
+}
+
+static event_response_t create_process_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
+{
+    // PHANDLE ProcessHandle
+    addr_t process_handle_addr = drakvuf_get_function_argument(drakvuf, info, 1);
+    uint32_t desired_access  = drakvuf_get_function_argument(drakvuf, info, 2);
+    addr_t object_attributes_addr  = drakvuf_get_function_argument(drakvuf, info, 3);
+    uint64_t parent_process  = drakvuf_get_function_argument(drakvuf, info, 4);
+    bool inherit_object_table = drakvuf_get_function_argument(drakvuf, info, 5);
+    uint64_t section_handle  = drakvuf_get_function_argument(drakvuf, info, 6);
+    uint64_t debug_port  = drakvuf_get_function_argument(drakvuf, info, 7);
+    uint64_t exception_port  = drakvuf_get_function_argument(drakvuf, info, 8);
+    return create_process_hook(drakvuf, info, process_handle_addr, desired_access, object_attributes_addr, parent_process, inherit_object_table, section_handle, debug_port, exception_port);
 }
 
 static event_response_t terminate_process_hook_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
@@ -778,6 +884,7 @@ procmon::procmon(drakvuf_t drakvuf, output_format_t output)
     breakpoint_in_system_process_searcher bp;
     if (!register_trap(nullptr, create_user_process_hook_cb, bp.for_syscall_name("NtCreateUserProcess")) ||
         !register_trap(nullptr, create_process_ex_hook_cb, bp.for_syscall_name("NtCreateProcessEx")) ||
+        !register_trap(nullptr, create_process_hook_cb, bp.for_syscall_name("NtCreateProcess")) ||
         !register_trap(nullptr, terminate_process_hook_cb, bp.for_syscall_name("NtTerminateProcess")) ||
         !register_trap(nullptr, open_process_hook_cb, bp.for_syscall_name("NtOpenProcess")) ||
         !register_trap(nullptr, open_thread_hook_cb, bp.for_syscall_name("NtOpenThread")) ||
