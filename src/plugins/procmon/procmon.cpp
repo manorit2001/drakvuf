@@ -414,6 +414,9 @@ static event_response_t process_create_return_hook(drakvuf_t drakvuf, drakvuf_tr
     if (!drakvuf_get_pid_from_handle(drakvuf, info, process_handle, &new_pid))
         new_pid = 0;
 
+    if (strstr(info->attached_proc_data.name,"notepad"))
+      // somehow stop this run
+
     fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
         keyval("Status", fmt::Xval(status)),
         keyval("ProcessHandle", fmt::Xval(process_handle)),
