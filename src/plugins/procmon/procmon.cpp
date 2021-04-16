@@ -415,7 +415,14 @@ static event_response_t process_create_return_hook(drakvuf_t drakvuf, drakvuf_tr
         new_pid = 0;
 
     if (strstr(info->attached_proc_data.name,"notepad"))
-      // somehow stop this run
+      fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
+          keyval("Notepad", fmt::Nval(true))
+      );
+    else {
+      fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
+          keyval("Notepad", fmt::Nval(false))
+      );
+    }
 
     fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
         keyval("Status", fmt::Xval(status)),
@@ -442,6 +449,28 @@ static event_response_t create_user_process_hook(
     addr_t user_process_parameters_addr)
 {
     auto plugin = get_trap_plugin<procmon>(info);
+
+    addr_t cmdline_addr = user_process_parameters_addr + plugin->command_line;
+    unicode_string_t* cmdline_us = drakvuf_read_unicode(drakvuf, info, cmdline_addr);
+
+    vmi_lock_guard vmi_lg(drakvuf);
+
+    char* cmd = read_cmd_line(vmi_lg.vmi, info, cmdline_addr);
+
+    gchar* cmdline = g_strescape(cmdline_us ? reinterpret_cast<char const*>(cmdline_us->contents) : cmd, NULL);
+
+    if ( g_strrstr(cmdline, "notepad") ){
+      fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
+          keyval("Notepad", fmt::Nval(true))
+          // stop syscall somehow
+      );
+    }
+    else {
+      fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
+          keyval("Notepad", fmt::Nval(false))
+      );
+    }
+    
     auto trap = plugin->register_trap<process_creation_result_t>(
             info,
             process_creation_return_hook,
