@@ -414,14 +414,15 @@ static event_response_t process_create_return_hook(drakvuf_t drakvuf, drakvuf_tr
     if (!drakvuf_get_pid_from_handle(drakvuf, info, process_handle, &new_pid))
         new_pid = 0;
 
-    if (strstr(info->attached_proc_data.name,"notepad"))
-      fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
-          keyval("Notepad", fmt::Nval(true))
-      );
-    else {
-      fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
-          keyval("Notepad", fmt::Nval(false))
-      );
+    if (strstr(info->attached_proc_data.name, "notepad"))
+        fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
+            keyval("Notepad", fmt::Nval(true))
+        );
+    else
+    {
+        fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
+            keyval("Notepad", fmt::Nval(false))
+        );
     }
 
     fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
@@ -459,37 +460,39 @@ static event_response_t create_user_process_hook(
 
     gchar* cmdline = g_strescape(cmdline_us ? reinterpret_cast<char const*>(cmdline_us->contents) : cmd, NULL);
 
-    if ( g_strrstr(cmdline, "notepad") ){
-      addr_t addr = drakvuf_get_function_return_address(drakvuf, info);
-      if (!addr)
-      {
-        fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
-          keyval("Notepad", fmt::Nval(true)),
-          keyval("Failed", fmt::Nval(true))
-        );
-        return VMI_EVENT_RESPONSE_NONE;
-      }
-      else
-      {
-        page_mode_t pm = drakvuf_get_page_mode(drakvuf);
-        bool is32 = (pm != VMI_PM_IA32E);
+    if ( g_strrstr(cmdline, "notepad") )
+    {
+        addr_t addr = drakvuf_get_function_return_address(drakvuf, info);
+        if (!addr)
+        {
+            fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
+                keyval("Notepad", fmt::Nval(true)),
+                keyval("Failed", fmt::Nval(true))
+            );
+            return VMI_EVENT_RESPONSE_NONE;
+        }
+        else
+        {
+            page_mode_t pm = drakvuf_get_page_mode(drakvuf);
+            bool is32 = (pm != VMI_PM_IA32E);
 
+            fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
+                keyval("Notepad", fmt::Nval(true)),
+                keyval("Addr", fmt::Nval(addr))
+            );
+            info->regs->rip = addr;
+            info->regs->rsp += (is32?4:8);
+            info->regs->rax = 1;
+            return VMI_EVENT_RESPONSE_SET_REGISTERS;
+        }
+    }
+    else
+    {
         fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
-            keyval("Notepad", fmt::Nval(true)),
-            keyval("Addr", fmt::Nval(addr))
+            keyval("Notepad", fmt::Nval(false))
         );
-        info->regs->rip = addr;
-        info->regs->rsp += (is32?4:8);
-        info->regs->rax = 1;
-        return VMI_EVENT_RESPONSE_SET_REGISTERS;
-      }
     }
-    else {
-      fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
-          keyval("Notepad", fmt::Nval(false))
-      );
-    }
-    
+
     auto trap = plugin->register_trap<process_creation_result_t>(
             info,
             process_creation_return_hook,
