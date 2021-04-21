@@ -460,14 +460,8 @@ static event_response_t create_user_process_hook(
     gchar* cmdline = g_strescape(cmdline_us ? reinterpret_cast<char const*>(cmdline_us->contents) : cmd, NULL);
 
     if ( g_strrstr(cmdline, "notepad") ){
-      ACCESS_CONTEXT(ctx,
-        .translate_mechanism = VMI_TM_PROCESS_DTB,
-        .dtb = info->regs->cr3,
-        .addr = info->regs->rsp,
-      );
-      
-      uint8_t addr;
-      if (VMI_FAILURE == vmi_read_8(vmi_lg, &ctx, &addr))
+      addr_t addr = drakvuf_get_function_return_address(drakvuf, info);
+      if (!addr)
       {
         fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
           keyval("Notepad", fmt::Nval(true)),
@@ -477,12 +471,15 @@ static event_response_t create_user_process_hook(
       }
       else
       {
+        page_mode_t pm = drakvuf_get_page_mode(drakvuf);
+        bool is32 = (pm != VMI_PM_IA32E);
+
         fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
             keyval("Notepad", fmt::Nval(true)),
             keyval("Addr", fmt::Nval(addr))
         );
         info->regs->rip = addr;
-        info->regs->rsp += 8;
+        info->regs->rsp += (is32?4:8);
         info->regs->rax = 1;
         return VMI_EVENT_RESPONSE_SET_REGISTERS;
       }
