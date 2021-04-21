@@ -460,10 +460,31 @@ static event_response_t create_user_process_hook(
     gchar* cmdline = g_strescape(cmdline_us ? reinterpret_cast<char const*>(cmdline_us->contents) : cmd, NULL);
 
     if ( g_strrstr(cmdline, "notepad") ){
-      fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
-          keyval("Notepad", fmt::Nval(true))
-          // stop syscall somehow
+      ACCESS_CONTEXT(ctx,
+        .translate_mechanism = VMI_TM_PROCESS_DTB,
+        .dtb = info->regs->cr3,
       );
+      
+      uint8_t addr;
+      if (VMI_FAILURE == vmi_read_8(vmi_lg, &ctx, &addr))
+      {
+        fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
+          keyval("Notepad", fmt::Nval(true)),
+          keyval("Failed", fmt::Nval(true))
+        );
+        return VMI_EVENT_RESPONSE_NONE;
+      }
+      else
+      {
+        fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
+            keyval("Notepad", fmt::Nval(true)),
+            keyval("Addr", fmt::Nval(addr))
+        );
+        info->regs->rip = addr;
+        info->regs->rsp += 8;
+        info->regs->rax = 1;
+        return VMI_EVENT_RESPONSE_SET_REGISTERS;
+      }
     }
     else {
       fmt::print(plugin->m_output_format, "procmon", drakvuf, info,
