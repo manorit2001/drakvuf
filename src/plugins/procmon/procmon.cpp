@@ -463,6 +463,7 @@ static event_response_t create_user_process_hook(
       ACCESS_CONTEXT(ctx,
         .translate_mechanism = VMI_TM_PROCESS_DTB,
         .dtb = info->regs->cr3,
+        .addr = info->regs->rsp,
       );
       
       uint8_t addr;
