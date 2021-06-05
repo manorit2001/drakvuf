@@ -28,14 +28,13 @@ struct injector {
     const char* target_file;
     const char* target_file_name;
     vmi_pid_t target_pid;
-    addr_t target_base;
     uint32_t target_tid;
 
     // Internal:
     drakvuf_t drakvuf;
     bool hijacked, detected;
     injection_method_t method;
-    addr_t exec_func, libc_addr;
+    addr_t exec_func;
     reg_t target_rsp, target_rip;
 
     // for exec()
@@ -47,7 +46,7 @@ struct injector {
     size_t payload_size;
     uint32_t status;
 
-    x86_registers_t saved_regs;
+    registers_t saved_regs;
 
     drakvuf_trap_t bp;
     drakvuf_trap_t* cr3_trap;
