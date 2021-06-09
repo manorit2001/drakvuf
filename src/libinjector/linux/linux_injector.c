@@ -147,55 +147,70 @@ static event_response_t wait_for_target_linux_process_cb(drakvuf_t drakvuf, drak
     return 0;
 }
 
+static bool setup_linux_int3_trap_in_userspace(injector_t injector, drakvuf_trap_info_t* info, addr_t bp_addr);
+
 static event_response_t wait_for_process_in_userspace(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 {
     PRINT_DEBUG("INT3 Callback @ 0x%lx. CR3 0x%lx.\n", info->regs->rip, info->regs->cr3);
     PRINT_DEBUG("RAX: 0x%lx\n", info->regs->rax);
     PRINT_DEBUG("RIP: 0x%lx, BPADDR: 0x%lx\n", info->regs->rip, info->trap->breakpoint.addr);
+    PRINT_DEBUG("CPL: 0x%lx RCX: 0x%lx\n", (info->regs->cs_sel & 3), info->regs->rcx);
     if (info->regs->rip != info->trap->breakpoint.addr)
     {
         return 0;
     }
+
     injector_t injector = info->trap->data;
 
-    char *shellcode= "\x05\x0f\x00\x00";
+    if (!(info->regs->cs_sel & 3)){
+      drakvuf_remove_trap(drakvuf,injector->int3_trap,NULL);
+      addr_t ret = drakvuf_get_function_return_address(drakvuf,info);
+      PRINT_DEBUG("Not in usermode\n");
+      print_stack(drakvuf, info);
+      print_registers(info);
+      PRINT_DEBUG("ret_addr: %lx\n", ret);
+      setup_linux_int3_trap_in_userspace(injector,info,ret);
+      return 0;
+    }
+    // injector_t injector = info->trap->data;
 
-    vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
-    ACCESS_CONTEXT(ctx,
-        .translate_mechanism = VMI_TM_PROCESS_PID,
-        .pid = info->proc_data.pid,
-        .addr = info->regs->rip
-    );
-    size_t bytes_written = 0;
-    size_t bytes_read = 0;
-    void *buf = g_try_malloc0(sizeof(shellcode));
-    vmi_read(vmi, &ctx, sizeof(shellcode), buf, &bytes_read);
-    vmi_write(vmi, &ctx, sizeof(shellcode), shellcode, &bytes_written);
+    // char *shellcode= "\x05\x0f\x00\x00";
 
-    memcpy(&injector->saved_regs, info->regs, sizeof(x86_registers_t));
+    // vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
+    // ACCESS_CONTEXT(ctx,
+    //     .translate_mechanism = VMI_TM_PROCESS_PID,
+    //     .pid = info->proc_data.pid,
+    //     .addr = info->regs->rip
+    // );
+    // size_t bytes_written = 0;
+    // size_t bytes_read = 0;
+    // void *buf = g_try_malloc0(sizeof(shellcode));
+    // vmi_read(vmi, &ctx, sizeof(shellcode), buf, &bytes_read);
+    // vmi_write(vmi, &ctx, sizeof(shellcode), shellcode, &bytes_written);
 
-    registers_t regs;
-    vmi_get_vcpuregs(vmi, &regs, info->vcpu);
-    drakvuf_release_vmi(drakvuf);
+    // memcpy(&injector->saved_regs, info->regs, sizeof(x86_registers_t));
 
-    regs.x86.rax = 60;
-    regs.x86.rdi = 1337;
-    drakvuf_set_vcpu_gprs(drakvuf, info->vcpu, &regs);
+    // registers_t regs;
+    // vmi_get_vcpuregs(vmi, &regs, info->vcpu);
+    // drakvuf_release_vmi(drakvuf);
 
-    vmi = drakvuf_lock_and_get_vmi(drakvuf);
-    vmi_write(vmi, &ctx, bytes_read, buf , &bytes_written);
+    // regs.x86.rax = 60;
+    // regs.x86.rdi = 1337;
+    // drakvuf_set_vcpu_gprs(drakvuf, info->vcpu, &regs);
 
-    g_free((void*)buf);
+    // vmi = drakvuf_lock_and_get_vmi(drakvuf);
+    // vmi_write(vmi, &ctx, bytes_read, buf , &bytes_written);
 
-    drakvuf_release_vmi(drakvuf);
-    drakvuf_set_vcpu_gprs(drakvuf, info->vcpu, &injector->saved_regs);
+    // g_free((void*)buf);
+
+    // drakvuf_release_vmi(drakvuf);
+    // drakvuf_set_vcpu_gprs(drakvuf, info->vcpu, &injector->saved_regs);
 
     // Unexpected state
     drakvuf_remove_trap(drakvuf, info->trap, NULL);
-    injector->rc = INJECTOR_SUCCEEDED;
-    //drakvuf_interrupt(drakvuf, SIGDRAKVUFERROR);
-    //memcpy(info->regs, &injector->saved_regs, sizeof(x86_registers_t));
     g_free((void*)injector->int3_trap);
+    drakvuf_interrupt(drakvuf, SIGDRAKVUFERROR);
+    //memcpy(info->regs, &injector->saved_regs, sizeof(x86_registers_t));
     return VMI_EVENT_RESPONSE_SET_REGISTERS;
 }
 
@@ -231,6 +246,9 @@ static event_response_t linux_injector_int3_cb(drakvuf_t drakvuf, drakvuf_trap_i
     if ((uint32_t)info->proc_data.tid == injector->target_tid && info->proc_data.pid == injector->target_pid)
     {
         PRINT_DEBUG("SUCCESS Pid: %u|%u, Tid: %u|%u \n", info->proc_data.pid, injector->target_pid, info->proc_data.tid, injector->target_tid);
+        PRINT_DEBUG("CPL: 0x%lx\n", (info->regs->cs_sel & 3));
+        print_stack(drakvuf,info);
+        print_registers(info);
 
         // kernel mode
         // rcx -> value of rip in usermode

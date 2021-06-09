@@ -67,3 +67,5 @@ struct injector {
 
 void free_memtraps(injector_t injector);
 void free_injector(injector_t injector);
+void print_stack(drakvuf_t drakvuf, drakvuf_trap_info_t* info);
+void print_registers(drakvuf_trap_info_t* info);
