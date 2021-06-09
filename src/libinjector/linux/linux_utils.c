@@ -21,5 +21,10 @@ void free_injector(injector_t injector)
 
     free_memtraps(injector);
 
-    g_free((void*)injector);
+    if (injector->memdata.data)
+      g_free((void*)injector->memdata.data);
+    if (injector)
+      g_free((void*)injector);
+
+    injector = NULL;
 }
