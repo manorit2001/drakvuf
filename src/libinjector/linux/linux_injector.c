@@ -43,7 +43,8 @@ static event_response_t injector_int3_userspace_cb(drakvuf_t drakvuf, drakvuf_tr
     //     injector->target_tid = info->proc_data.tid;
     // }
 
-    handle_shellcode(drakvuf, info);
+    // TBD
+    // handle_shellcode(drakvuf, info);
 
     drakvuf_remove_trap(drakvuf, info->trap, NULL);
     drakvuf_interrupt(drakvuf, SIGDRAKVUFERROR);
@@ -122,8 +123,6 @@ static bool inject(drakvuf_t drakvuf, injector_t injector) {
     if (SIGDRAKVUFTIMEOUT == drakvuf_is_interrupted(drakvuf))
         injector->rc = INJECTOR_TIMEOUTED;
 
-    free_injector(injector);
-
     // should be handled inside the callbacks
     //drakvuf_remove_trap(drakvuf, &trap, NULL);
 
@@ -152,6 +151,7 @@ injector_status_t injector_start_app_on_linux(
     injector->format = format;
 
     inject(drakvuf, injector);
+    injector->rc = INJECT_RESULT_SUCCESS;
 
     injector_status_t rc = injector->rc;
     free_injector(injector);
