@@ -306,11 +306,23 @@ bool linux_get_current_thread_id( drakvuf_t drakvuf, drakvuf_trap_info_t* info, 
     if ( !process_base )
         return false;
 
+    // get CPL
+    unsigned int CPL = (info->regs->cs_sel & 3);
+
     ACCESS_CONTEXT(ctx,
-        .translate_mechanism = VMI_TM_PROCESS_DTB,
-        .dtb = info->regs->cr3,
         .addr = process_base + drakvuf->offsets[TASK_STRUCT_PID]
     );
+
+    // if kernel privilege, use DTB else use PID due to KPTI
+    if (!CPL){
+        ctx.translate_mechanism = VMI_TM_PROCESS_DTB;
+        ctx.dtb = info->regs->cr3;
+    }
+    else{
+        ctx.translate_mechanism = VMI_TM_PROCESS_PID;
+        ctx.pid = 0;
+    }
+
     uint32_t _thread_id;
 
     if ( VMI_FAILURE == vmi_read_32(drakvuf->vmi, &ctx, &_thread_id) )
