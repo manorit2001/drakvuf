@@ -26,12 +26,26 @@ typedef enum
     INJECT_RESULT_ERROR_CODE,
 } inject_result_t;
 
+typedef enum {
+    sys_read = 0,
+    sys_write = 1,
+    sys_open = 2,
+    sys_close = 3,
+    sys_stat = 4,
+    sys_mmap = 9,
+    sys_mprotect = 10,
+    sys_munmap = 11,
+    sys_exit = 60,
+    sys_kill = 62,
+} syscall_t;
+
 struct injector
 {
     // Inputs:
     vmi_pid_t target_pid;
     uint32_t target_tid;
     const char* shellcode_file;
+    const char* target_file;
     int args_count;
     const char* args[10];
     output_format_t format;
@@ -39,6 +53,13 @@ struct injector
     // Internal:
     drakvuf_t drakvuf;
     injection_method_t method;
+    syscall_t syscall;
+
+    // read_file, write_file
+    addr_t file_descriptor;
+
+    // mmap
+    addr_t virtual_memory_addr;
 
     // for restoring stack
     registers_t saved_regs;
@@ -49,8 +70,6 @@ struct injector
     } memdata;
 
     drakvuf_trap_t bp;
-    drakvuf_trap_t* cr3_trap;
-    drakvuf_trap_t* int3_trap;
     GSList* memtraps;
 
     // Results:
@@ -62,11 +81,14 @@ struct injector
         uint32_t code;
         const char* string;
     } error_code;
-
-    uint32_t pid, tid;
 };
+
 
 void free_memtraps(injector_t injector);
 void free_injector(injector_t injector);
+bool setup_mmap_syscall(injector_t injector, x86_registers_t* regs, size_t size);
+bool setup_open_file_syscall(injector_t injector, x86_registers_t* regs);
+bool setup_read_file_syscall(injector_t injector, x86_registers_t* regs, size_t size);
+bool setup_exit_syscall(injector_t injector, x86_registers_t* regs, uint32_t no);
 
 #endif

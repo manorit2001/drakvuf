@@ -4,6 +4,8 @@
 
 static event_response_t injector_int3_userspace_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
 
+    injector_t injector = info->trap->data;
+
     // check CPL
     unsigned long int CPL = (info->regs->cs_sel & 3);
     PRINT_DEBUG("CPL 0x%lx\n", CPL);
@@ -11,40 +13,42 @@ static event_response_t injector_int3_userspace_cb(drakvuf_t drakvuf, drakvuf_tr
         PRINT_DEBUG("Reached userspace, yayy!\n");
     }
     else {
-        PRINT_DEBUG("INT3 received but\n");
+        PRINT_DEBUG("INT3 received but CPL is not 0x3\n");
+        print_stack(drakvuf, info);
+        print_registers(info);
     }
 
     PRINT_DEBUG("INT3 Callback @ 0x%lx. CR3 0x%lx. vcpu %i. TID %u\n",
                 info->regs->rip, info->regs->cr3, info->vcpu, info->proc_data.tid);
 
-    // if ( info->proc_data.pid != injector->target_pid )
-    // {
-    //     PRINT_DEBUG("INT3 received but '%s' PID (%u) doesn't match target process (%u)\n",
-    //                 info->proc_data.name, info->proc_data.pid, injector->target_pid);
-    //     return 0;
-    // }
+    if ( info->proc_data.pid != injector->target_pid )
+    {
+        PRINT_DEBUG("INT3 received but '%s' PID (%u) doesn't match target process (%u)\n",
+                    info->proc_data.name, info->proc_data.pid, injector->target_pid);
+        return 0;
+    }
 
-    // if (info->regs->rip != info->trap->breakpoint.addr) {
-    //     PRINT_DEBUG("INT3 received but BP_ADDR (%lx) doesn't match RIP (%lx)",
-    //                 info->trap->breakpoint.addr, info->regs->rip);
-    //     return 0;
-    // }
+    if (info->regs->rip != info->trap->breakpoint.addr) {
+        PRINT_DEBUG("INT3 received but BP_ADDR (%lx) doesn't match RIP (%lx)",
+                    info->trap->breakpoint.addr, info->regs->rip);
+        return 0;
+    }
 
-    // if (injector->target_tid && (uint32_t)info->proc_data.tid != injector->target_tid)
-    // {
-    //     PRINT_DEBUG("INT3 received but '%s' TID (%u) doesn't match target process (%u)\n",
-    //                 info->proc_data.name, info->proc_data.tid, injector->target_tid);
-    //     return 0;
-    // }
-    // else if (!injector->target_tid)
-    // {
-    //     PRINT_DEBUG("Target TID not provided by the user, pinning TID to %u\n",
-    //                 info->proc_data.tid);
-    //     injector->target_tid = info->proc_data.tid;
-    // }
+    if (injector->target_tid && (uint32_t)info->proc_data.tid != injector->target_tid)
+    {
+        PRINT_DEBUG("INT3 received but '%s' TID (%u) doesn't match target process (%u)\n",
+                    info->proc_data.name, info->proc_data.tid, injector->target_tid);
+        return 0;
+    }
+    else if (!injector->target_tid)
+    {
+        PRINT_DEBUG("Target TID not provided by the user, pinning TID to %u\n",
+                    info->proc_data.tid);
+        injector->target_tid = info->proc_data.tid;
+    }
 
     // TBD
-    // handle_shellcode(drakvuf, info);
+    handle_shellcode(drakvuf, info);
 
     drakvuf_remove_trap(drakvuf, info->trap, NULL);
     drakvuf_interrupt(drakvuf, SIGDRAKVUFERROR);
@@ -80,14 +84,14 @@ static event_response_t wait_for_target_process_cr3_cb(drakvuf_t drakvuf, drakvu
     else {
         // rcx register should have the address for userspace rip
         // for x64 systems
-        print_registers(info);
-        print_stack(drakvuf, info);
-
         if ( setup_int3_trap_for_userspace(injector, info, info->regs->rcx) ) {
             // Unsubscribe from the CR3 trap
+            PRINT_DEBUG("Usermode Trap Addr: %lx\n", info->regs->rcx);
             drakvuf_remove_trap(drakvuf, info->trap, NULL);
         }
         else {
+            print_registers(info);
+            print_stack(drakvuf, info);
             fprintf(stderr, "Failed to trap trapframe return address\n");
         }
     }
@@ -124,7 +128,7 @@ static bool inject(drakvuf_t drakvuf, injector_t injector) {
         injector->rc = INJECTOR_TIMEOUTED;
 
     // should be handled inside the callbacks
-    //drakvuf_remove_trap(drakvuf, &trap, NULL);
+    // drakvuf_remove_trap(drakvuf, &trap, NULL);
 
     return true;
 }
