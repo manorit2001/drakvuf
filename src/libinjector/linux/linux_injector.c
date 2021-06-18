@@ -12,14 +12,16 @@ static event_response_t injector_int3_userspace_cb(drakvuf_t drakvuf, drakvuf_tr
     if (!check_userspace_int3_trap(injector, info))
         return VMI_EVENT_RESPONSE_NONE;
 
+    event_response_t event = VMI_EVENT_RESPONSE_NONE;
+    event = handle_shellcode(drakvuf, info);
 
-    // TBD
-    handle_shellcode(drakvuf, info);
+    print_stack(drakvuf, info);
+    print_registers(info);
 
     drakvuf_remove_trap(drakvuf, info->trap, NULL);
-    drakvuf_interrupt(drakvuf, SIGDRAKVUFERROR);
+    // drakvuf_interrupt(drakvuf, SIGDRAKVUFERROR);
 
-    return 0;
+    return event;
 
 }
 

@@ -5,17 +5,18 @@ void print_stack(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
     PRINT_DEBUG("\nRSP: %lx\n", info->regs->rsp);
     PRINT_DEBUG("Stack");
     vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
-    for(int i=0; i < 128; i++)
+    uint32_t offset = 0;
+    for(int i=0; i < 16; i++)
     {
         ACCESS_CONTEXT(ctx,
                        .translate_mechanism = VMI_TM_PROCESS_PID,
                        .pid = info->proc_data.pid,
-                       .addr = (info->regs->rsp + i*8)
+                       .addr = (info->regs->rsp - offset + i*8)
                       );
         addr_t val = 0;
         vmi_read_64(vmi, &ctx, &val);
         if((i%4)==0)
-            PRINT_DEBUG("\n%016lx:", info->regs->rsp + (i/4)*32);
+            PRINT_DEBUG("\n%016lx:", info->regs->rsp - offset + (i/4)*32);
         PRINT_DEBUG(" %016lx", val);
     }
     PRINT_DEBUG("\n\n");
