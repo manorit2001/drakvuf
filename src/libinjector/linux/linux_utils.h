@@ -59,9 +59,9 @@ struct injector
     } error_code;
 };
 
-
 void free_memtraps(injector_t injector);
 void free_injector(injector_t injector);
+bool check_userspace_int3_trap(injector_t injector, drakvuf_trap_info_t* info);
 bool setup_exit_syscall(injector_t injector, x86_registers_t* regs, uint32_t no);
 
 #endif
