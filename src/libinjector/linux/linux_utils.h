@@ -15,6 +15,7 @@
 #include <sys/mman.h>
 #include <libdrakvuf/libdrakvuf.h>
 #include <libinjector/private.h>
+#include <assert.h>
 
 typedef enum
 {
@@ -24,6 +25,18 @@ typedef enum
     INJECT_RESULT_PREMATURE,
     INJECT_RESULT_ERROR_CODE,
 } inject_result_t;
+
+typedef enum {
+    STEP1,
+    STEP2,
+    STEP3,
+    STEP4,
+    STEP5,
+    STEP6,
+    STEP7,
+    STEP8,
+    STEP9,
+} injector_step_t;
 
 typedef enum {
     sys_read = 0,
@@ -53,6 +66,7 @@ struct injector
     drakvuf_t drakvuf;
     injection_method_t method;
     syscall_t syscall;
+    injector_step_t step;
 
     // read_file, write_file
     addr_t file_descriptor;
@@ -61,11 +75,12 @@ struct injector
     addr_t virtual_memory_addr;
 
     // for restoring stack
-    registers_t saved_regs;
+    x86_registers_t saved_regs;
     struct
     {
         addr_t loc;
         void *data;
+        int len;
     } memdata;
 
     drakvuf_trap_t bp;
@@ -86,6 +101,8 @@ struct injector
 
 void free_memtraps(injector_t injector);
 void free_injector(injector_t injector);
+bool save_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info, uint32_t size);
+bool restore_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info);
 bool check_userspace_int3_trap(injector_t injector, drakvuf_trap_info_t* info);
 bool setup_mmap_syscall(injector_t injector, x86_registers_t* regs, size_t size);
 bool setup_open_file_syscall(injector_t injector, x86_registers_t* regs);
