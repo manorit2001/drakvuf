@@ -104,9 +104,5 @@ void free_injector(injector_t injector);
 bool save_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info, uint32_t size);
 bool restore_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info);
 bool check_userspace_int3_trap(injector_t injector, drakvuf_trap_info_t* info);
-bool setup_mmap_syscall(injector_t injector, x86_registers_t* regs, size_t size);
-bool setup_open_file_syscall(injector_t injector, x86_registers_t* regs);
-bool setup_read_file_syscall(injector_t injector, x86_registers_t* regs, size_t size);
-bool setup_exit_syscall(injector_t injector, x86_registers_t* regs, uint32_t no);
 
 #endif

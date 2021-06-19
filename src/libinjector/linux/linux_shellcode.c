@@ -1,5 +1,6 @@
 #include "linux_shellcode.h"
 #include "linux_debug.h"
+#include "linux_syscalls.h"
 
 event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
 
