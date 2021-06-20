@@ -2,7 +2,8 @@
 
 void print_shellcode(char* shellcode, int len) {
 
-    PRINT_DEBUG("Showing memory\n");
+    PRINT_DEBUG("Total Bytes: %d\n", len);
+    PRINT_DEBUG("Data: \n");
     for(int i=0; i<len; i++) {
         PRINT_DEBUG("%x ", *(shellcode + i) & 0xff);
     }

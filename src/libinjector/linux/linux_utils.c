@@ -12,8 +12,7 @@ bool save_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info, uint32_t size) 
                    .addr = info->regs->rip
                   );
 
-    size_t bytes_read_write = 0;
-    injector->memdata.len = size;
+    size_t bytes_read = 0;
 
     // save registers
     memcpy(&injector->saved_regs, info->regs, sizeof(x86_registers_t));
@@ -25,14 +24,16 @@ bool save_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info, uint32_t size) 
     vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
 
     // read the bytes
-    bool success = (VMI_SUCCESS == vmi_read(vmi, &ctx, size, (void *)injector->memdata.data, &bytes_read_write));
+    bool success = (VMI_SUCCESS == vmi_read(vmi, &ctx, size, (void *)injector->memdata.data, &bytes_read));
     if (!success)
         fprintf(stderr, "Could not read the data");
-    else
-        PRINT_DEBUG("BYTES: %ld\n", bytes_read_write);
+    else {
+        PRINT_DEBUG("Read data success\n");
+        print_shellcode(injector->memdata.data, bytes_read);
+    }
 
     injector->memdata.loc = info->regs->rip;
-    print_shellcode(injector->memdata.data, size);
+    injector->memdata.len = bytes_read;
 
     // release vmi
     drakvuf_release_vmi(drakvuf);
@@ -54,7 +55,7 @@ bool restore_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
                    .addr = injector->memdata.loc
                   );
 
-    size_t bytes_read_write = 0;
+    size_t bytes_write = 0;
 
     // restore registers
     memcpy(info->regs, &injector->saved_regs, sizeof(x86_registers_t));
@@ -62,11 +63,12 @@ bool restore_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
     // lock vmi
     vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
 
-    bool success = (VMI_SUCCESS == vmi_write(vmi, &ctx, injector->memdata.len, (void *)injector->memdata.data, &bytes_read_write));
+    bool success = (VMI_SUCCESS == vmi_write(vmi, &ctx, injector->memdata.len, (void *)injector->memdata.data, &bytes_write));
     if (!success)
         fprintf(stderr, "Could not restore the data");
-    else
-        PRINT_DEBUG("BYTES: %ld\n", bytes_read_write);
+    else {
+        PRINT_DEBUG("Bytes restored: %ld", bytes_write);
+    }
 
     injector->memdata.loc = 0;
     injector->memdata.len = 0;
