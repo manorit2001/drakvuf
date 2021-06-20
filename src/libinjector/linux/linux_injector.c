@@ -18,6 +18,11 @@ static event_response_t injector_int3_userspace_cb(drakvuf_t drakvuf, drakvuf_tr
     print_stack(drakvuf, info);
     print_registers(info);
 
+    // a very weird issue is being caused by not removing traps,
+    // i can notice an offset of 4 in rip causing the shellcode to fail
+    // if i don't remove trap
+    // drakvuf_remove_trap(drakvuf, info->trap, NULL);
+
     return event;
 
 }
