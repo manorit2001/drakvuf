@@ -9,6 +9,7 @@ void print_shellcode(char* shellcode, int len) {
     }
     PRINT_DEBUG("\n");
 }
+
 void print_stack(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 {
     PRINT_DEBUG("\nRSP: %lx\n", info->regs->rsp);

@@ -100,6 +100,24 @@ static bool inject(drakvuf_t drakvuf, injector_t injector) {
     return true;
 }
 
+bool init_injector(injector_t injector) {
+    switch(injector->method)
+    {
+    case INJECT_METHOD_SHELLCODE:
+    {
+        // ret will be appended to shellcode here
+        load_file_to_injector_shellcode(injector, injector->target_file);
+        break;
+    }
+    default:
+    {
+        fprintf(stderr, "Method not supported for [LINUX]");
+        return false;
+    }
+    }
+    return true;
+}
+
 injector_status_t injector_start_app_on_linux(
     drakvuf_t drakvuf,
     vmi_pid_t pid,
@@ -122,8 +140,15 @@ injector_status_t injector_start_app_on_linux(
     injector->format = format;
     injector->step = STEP1;
 
-    inject(drakvuf, injector);
-    injector->rc = INJECT_RESULT_SUCCESS;
+    if (init_injector(injector))
+    {
+        inject(drakvuf, injector);
+        injector->rc = INJECT_RESULT_SUCCESS;
+    }
+    else
+    {
+        injector->rc = INJECT_RESULT_METHOD_UNSUPPORTED;
+    }
 
     injector_status_t rc = injector->rc;
     free_injector(injector);

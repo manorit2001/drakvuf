@@ -24,6 +24,7 @@ typedef enum
     INJECT_RESULT_CRASH,
     INJECT_RESULT_PREMATURE,
     INJECT_RESULT_ERROR_CODE,
+    INJECT_RESULT_METHOD_UNSUPPORTED,
 } inject_result_t;
 
 typedef enum {
@@ -67,6 +68,12 @@ struct injector
     syscall_t syscall;
     injector_step_t step;
 
+    // shellcode
+    struct {
+        void *data;
+        int len;
+    } shellcode;
+
     // read_file, write_file
     addr_t file_descriptor;
 
@@ -102,6 +109,8 @@ void free_memtraps(injector_t injector);
 void free_injector(injector_t injector);
 bool save_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info, uint32_t size);
 bool restore_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info);
+bool save_rip_for_ret(drakvuf_t drakvuf, x86_registers_t* regs);
+bool load_file_to_injector_shellcode(injector_t injector, const char* file);
 bool check_userspace_int3_trap(injector_t injector, drakvuf_trap_info_t* info);
 
 #endif
