@@ -114,7 +114,7 @@ injector_status_t injector_start_app_on_linux(
     injector->drakvuf = drakvuf;
     injector->target_pid = pid;
     injector->target_tid = tid;
-    injector->shellcode_file = file;
+    injector->target_file = file;
     injector->args_count = args_count;
     for ( int i = 0; i<args_count; i++ )
         injector->args[i] = args[i];
