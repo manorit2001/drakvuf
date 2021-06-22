@@ -18,9 +18,6 @@ static event_response_t injector_int3_userspace_cb(drakvuf_t drakvuf, drakvuf_tr
     print_stack(drakvuf, info);
     print_registers(info);
 
-    drakvuf_remove_trap(drakvuf, info->trap, NULL);
-    // drakvuf_interrupt(drakvuf, SIGDRAKVUFERROR);
-
     return event;
 
 }
@@ -123,6 +120,7 @@ injector_status_t injector_start_app_on_linux(
         injector->args[i] = args[i];
     injector->method = method;
     injector->format = format;
+    injector->step = STEP1;
 
     inject(drakvuf, injector);
     injector->rc = INJECT_RESULT_SUCCESS;
