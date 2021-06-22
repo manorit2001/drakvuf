@@ -17,7 +17,17 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
     //    6:   0f 05                   syscall
     //
 
+    // works like charm with proper exit code
     const char *shellcode = "\x6a\x3c\x58\x6a\x01\x5f\x0f\x05";
+    
+    // works but doesn't give proper exit code set manually by regs.x86.rdi or setup_stack ( inside setup_exit_syscall )
+    // const char *shellcode = "\x0f\x05\x90\x90";
+
+    // doesn't work
+    // const char *shellcode = "\x90\x90\x0f\x05";
+    
+    // doesn't work
+    // const char *shellcode = "\x90\x0f\x05\x90";
 
     vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
 
@@ -28,13 +38,14 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
     ACCESS_CONTEXT(ctx,
                    .translate_mechanism = VMI_TM_PROCESS_DTB,
                    .dtb = info->regs->cr3,
-                   .addr = info->regs->rsp
+                   .addr = info->regs->rip
                   );
 
     size_t bytes_read_write;
     // save the rsp bytes
     bool success = (VMI_SUCCESS == vmi_read(vmi, &ctx, sizeof(shellcode), injector->memdata.data, &bytes_read_write));
     PRINT_DEBUG("BYTES: %ld\n", bytes_read_write);
+
     // save the registries
     memcpy(&injector->saved_regs, info->regs, sizeof(x86_registers_t));
 
@@ -48,6 +59,11 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
     print_stack(drakvuf, info);
     print_registers(info);
 
+    registers_t regs;
+    vmi_get_vcpuregs(vmi, &regs, info->vcpu);
+
+    setup_exit_syscall(injector, &regs.x86, 20);
+
     vmi = drakvuf_lock_and_get_vmi(drakvuf);
     success = (VMI_SUCCESS == vmi_write(vmi, &ctx, sizeof(shellcode), (void *)shellcode, &bytes_read_write));
     PRINT_DEBUG("BYTES: %ld\n", bytes_read_write);
@@ -59,16 +75,14 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
     // release vmi
     drakvuf_release_vmi(drakvuf);
 
-    print_stack(drakvuf, info);
+    regs.x86.rax = injector->syscall;
 
-    registers_t regs;
-    vmi_get_vcpuregs(vmi, &regs, info->vcpu);
+    // doesn't work 
+    regs.x86.rdi = 4;
 
-    regs.x86.rax = 60;
-    regs.x86.rdi = 1337;
+    regs.x86.rip = info->regs->rip;
+
     drakvuf_set_vcpu_gprs(drakvuf, info->vcpu, &regs);
 
-    print_registers(info);
-
-    return 0;
+    return VMI_EVENT_RESPONSE_SET_REGISTERS;
 }
