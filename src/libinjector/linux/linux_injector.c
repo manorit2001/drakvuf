@@ -25,7 +25,21 @@ static event_response_t injector_int3_userspace_cb(drakvuf_t drakvuf, drakvuf_tr
 
 }
 
-static bool setup_int3_trap_for_userspace(injector_t injector, drakvuf_trap_info_t* info, addr_t bp_addr) {
+static event_response_t wait_for_target_process_cr3_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
+    injector_t injector = info->trap->data;
+
+    // right now we are in kernel space
+    PRINT_DEBUG("CR3 changed to 0x%" PRIx64 ". PID: %u PPID: %u TID: %u\n",
+                info->regs->cr3, info->proc_data.pid, info->proc_data.ppid, info->proc_data.tid);
+
+    if (info->proc_data.pid != injector->target_pid && info->proc_data.tid != injector->target_tid)
+        return 0;
+
+    // rcx register should have the address for userspace rip
+    // for x64 systems
+    addr_t bp_addr = info->regs->rcx;
+
+    // setup int3 trap
     injector->bp.type = BREAKPOINT;
     injector->bp.name = "entry";
     injector->bp.cb = injector_int3_userspace_cb;
@@ -37,31 +51,16 @@ static bool setup_int3_trap_for_userspace(injector_t injector, drakvuf_trap_info
     injector->bp.ttl = UNLIMITED_TTL;
     injector->bp.ah_cb = NULL;
 
-    return drakvuf_add_trap(injector->drakvuf, &injector->bp);
-}
+    if ( drakvuf_add_trap(injector->drakvuf, &injector->bp) ) {
+        PRINT_DEBUG("Usermode Trap Addr: %lx\n", info->regs->rcx);
 
-static event_response_t wait_for_target_process_cr3_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
-    injector_t injector = info->trap->data;
-
-    // right now we are in kernel space
-    PRINT_DEBUG("CR3 changed to 0x%" PRIx64 ". PID: %u PPID: %u TID: %u\n",
-                info->regs->cr3, info->proc_data.pid, info->proc_data.ppid, info->proc_data.tid);
-
-    if (info->proc_data.pid != injector->target_pid && info->proc_data.tid != injector->target_tid)
-        return 0;
+        // Unsubscribe from the CR3 trap
+        drakvuf_remove_trap(drakvuf, info->trap, NULL);
+    }
     else {
-        // rcx register should have the address for userspace rip
-        // for x64 systems
-        if ( setup_int3_trap_for_userspace(injector, info, info->regs->rcx) ) {
-            // Unsubscribe from the CR3 trap
-            PRINT_DEBUG("Usermode Trap Addr: %lx\n", info->regs->rcx);
-            drakvuf_remove_trap(drakvuf, info->trap, NULL);
-        }
-        else {
-            print_registers(info);
-            print_stack(drakvuf, info);
-            fprintf(stderr, "Failed to trap trapframe return address\n");
-        }
+        fprintf(stderr, "Failed to trap trapframe return address\n");
+        print_registers(info);
+        print_stack(drakvuf, info);
     }
 
     return 0;
