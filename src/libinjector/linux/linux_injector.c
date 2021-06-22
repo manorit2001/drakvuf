@@ -2,6 +2,52 @@
 #include "linux_debug.h"
 #include "linux_shellcode.h"
 
+bool check_userspace_int3_trap(injector_t injector, drakvuf_trap_info_t* info) {
+
+    // check CPL
+    unsigned long int CPL = (info->regs->cs_sel & 3);
+    PRINT_DEBUG("CPL 0x%lx\n", CPL);
+
+    if ( CPL != 0)
+    {
+        PRINT_DEBUG("Inside INT3 userspace\n");
+    }
+    else
+    {
+        PRINT_DEBUG("INT3 received but CPL is not 0x3\n");
+        return false;
+    }
+
+    if ( info->proc_data.pid != injector->target_pid )
+    {
+        PRINT_DEBUG("INT3 received but '%s' PID (%u) doesn't match target process (%u)\n",
+                    info->proc_data.name, info->proc_data.pid, injector->target_pid);
+        return false;
+    }
+
+    if (info->regs->rip != info->trap->breakpoint.addr) {
+        PRINT_DEBUG("INT3 received but BP_ADDR (%lx) doesn't match RIP (%lx)",
+                    info->trap->breakpoint.addr, info->regs->rip);
+        return false;
+    }
+
+    if (injector->target_tid && (uint32_t)info->proc_data.tid != injector->target_tid)
+    {
+        PRINT_DEBUG("INT3 received but '%s' TID (%u) doesn't match target process (%u)\n",
+                    info->proc_data.name, info->proc_data.tid, injector->target_tid);
+        return false;
+    }
+
+    else if (!injector->target_tid)
+    {
+        PRINT_DEBUG("Target TID not provided by the user, pinning TID to %u\n",
+                    info->proc_data.tid);
+        injector->target_tid = info->proc_data.tid;
+    }
+    return true;
+
+}
+
 static event_response_t injector_int3_userspace_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
 
     injector_t injector = info->trap->data;
@@ -12,14 +58,10 @@ static event_response_t injector_int3_userspace_cb(drakvuf_t drakvuf, drakvuf_tr
     if (!check_userspace_int3_trap(injector, info))
         return VMI_EVENT_RESPONSE_NONE;
 
-    event_response_t event = VMI_EVENT_RESPONSE_NONE;
+    event_response_t event;
     event = handle_shellcode(drakvuf, info);
 
-    print_stack(drakvuf, info);
-    print_registers(info);
-
     drakvuf_remove_trap(drakvuf, info->trap, NULL);
-    // drakvuf_interrupt(drakvuf, SIGDRAKVUFERROR);
 
     return event;
 
@@ -37,6 +79,7 @@ static event_response_t wait_for_target_process_cr3_cb(drakvuf_t drakvuf, drakvu
 
     // rcx register should have the address for userspace rip
     // for x64 systems
+    // if rcx doesn't have it, TODO: try to extract it from stack
     addr_t bp_addr = info->regs->rcx;
 
     // setup int3 trap
@@ -85,10 +128,9 @@ static bool inject(drakvuf_t drakvuf, injector_t injector) {
         return false;
 
     if (!drakvuf_is_interrupted(drakvuf)) {
-        const char * method = "Injection";
-        PRINT_DEBUG("Starting %s loop\n", method);
+        PRINT_DEBUG("Starting drakvuf loop\n");
         drakvuf_loop(drakvuf, is_interrupted, NULL);
-        PRINT_DEBUG("Finished %s loop\n", method);
+        PRINT_DEBUG("Finished drakvuf loop\n");
     }
 
     if (SIGDRAKVUFTIMEOUT == drakvuf_is_interrupted(drakvuf))
@@ -108,7 +150,7 @@ injector_status_t injector_start_app_on_linux(
     injection_method_t method,
     output_format_t format,
     int args_count,
-    const char* args[10]
+    const char** args
 ) {
     injector_t injector = (injector_t)g_try_malloc0(sizeof(struct injector));
     injector->drakvuf = drakvuf;
