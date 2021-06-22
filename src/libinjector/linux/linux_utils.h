@@ -15,7 +15,7 @@
 #include <sys/mman.h>
 
 #include "libdrakvuf/libdrakvuf.h"
-#include "../private.h"
+#include "libinjector/private.h"
 
 typedef enum
 {
