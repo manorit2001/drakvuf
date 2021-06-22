@@ -10,12 +10,12 @@ void print_stack(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
         ACCESS_CONTEXT(ctx,
                        .translate_mechanism = VMI_TM_PROCESS_PID,
                        .pid = info->proc_data.pid,
-                       .addr = (info->regs->rsp - 64*8 + i*8)
+                       .addr = (info->regs->rsp + i*8)
                       );
         addr_t val = 0;
         vmi_read_64(vmi, &ctx, &val);
         if((i%4)==0)
-            PRINT_DEBUG("\n%016lx:", info->regs->rsp - 64*8 + (i/4)*32);
+            PRINT_DEBUG("\n%016lx:", info->regs->rsp + (i/4)*32);
         PRINT_DEBUG(" %016lx", val);
     }
     PRINT_DEBUG("\n\n");

@@ -19,12 +19,13 @@ void free_injector(injector_t injector)
 
     PRINT_DEBUG("Injector freed\n");
 
-    free_memtraps(injector);
+    if (injector->memtraps)
+        free_memtraps(injector);
 
     if (injector->memdata.data)
-      g_free((void*)injector->memdata.data);
+        g_free((void*)injector->memdata.data);
     if (injector)
-      g_free((void*)injector);
+        g_free((void*)injector);
 
     injector = NULL;
 }
