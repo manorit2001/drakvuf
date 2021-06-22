@@ -25,14 +25,7 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
     // given by kscieslinski
     // const char shellcode[] = { 0x48, 0xC7, 0xC0, 0x3C, 0x00, 0x00, 0x00, 0x0F, 0x05   };
 
-    // access rip location
-    ACCESS_CONTEXT(ctx,
-                   .translate_mechanism = VMI_TM_PROCESS_DTB,
-                   .dtb = info->regs->cr3,
-                   .addr = info->regs->rip
-                  );
 
-    size_t bytes_write;
     event_response_t event = VMI_EVENT_RESPONSE_NONE;
 
     switch(injector->step)
@@ -44,6 +37,14 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
 
         save_rip_for_ret(drakvuf, info->regs);
 
+        // access rip location
+        ACCESS_CONTEXT(ctx,
+                       .translate_mechanism = VMI_TM_PROCESS_DTB,
+                       .dtb = info->regs->cr3,
+                       .addr = info->regs->rip
+                      );
+
+        size_t bytes_write = 0;
         // lock vmi
         vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
 

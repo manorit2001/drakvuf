@@ -1,6 +1,6 @@
 #include "linux_utils.h"
 #include "linux_debug.h"
-#include "linux_shellcode.h"
+#include "methods/linux_shellcode.h"
 
 static event_response_t injector_int3_userspace_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
 
@@ -13,7 +13,19 @@ static event_response_t injector_int3_userspace_cb(drakvuf_t drakvuf, drakvuf_tr
         return VMI_EVENT_RESPONSE_NONE;
 
     event_response_t event = VMI_EVENT_RESPONSE_NONE;
-    event = handle_shellcode(drakvuf, info);
+    switch(injector->method)
+    {
+    case INJECT_METHOD_SHELLCODE:
+    {
+        event = handle_shellcode(drakvuf, info);
+        break;
+    }
+    default:
+    {
+        PRINT_DEBUG("Should not be here\n");
+        assert(false);
+    }
+    }
 
     print_stack(drakvuf, info);
     print_registers(info);
