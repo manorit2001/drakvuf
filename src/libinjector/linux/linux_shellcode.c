@@ -3,8 +3,6 @@
 
 event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
 
-    injector_t injector = info->trap->data;
-
     // exit_no_null.o:     file format elf64-x86-64
     //
     // Disassembly of section .text:
@@ -18,23 +16,15 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
     //
 
     // works like charm with proper exit code
-    const char *shellcode = "\x6a\x3c\x58\x6a\x01\x5f\x0f\x05";
-    
+    // const char shellcode[] = {0x6a, 0x3c, 0x58, 0x6a, 0x1, 0x5f, 0xf, 0x5};
+
     // Trying to write only the `syscall` instruction on the memory, and set registers using regs.x86 or setup_stack
-    
+
     // works but doesn't give proper exit code set manually by regs.x86.rdi or setup_stack ( inside setup_exit_syscall )
-    // const char *shellcode = "\x0f\x05\x90\x90";
+    // const char shellcode[] = {0xf, 0x5};
 
-    // doesn't work
-    // const char *shellcode = "\x90\x90\x0f\x05";
-    
-    // doesn't work
-    // const char *shellcode = "\x90\x0f\x05\x90";
-
-    vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
-
-    // allocate memory for saving overwritten rip bytes
-    injector->memdata.data = g_try_malloc0(sizeof(shellcode));
+    // konstanty sir suggested
+    const char shellcode[] = { 0x48, 0xC7, 0xC0, 0x3C, 0x00, 0x00, 0x00, 0x0F, 0x05  };
 
     // access rip location
     ACCESS_CONTEXT(ctx,
@@ -43,48 +33,28 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
                    .addr = info->regs->rip
                   );
 
+    // TODO: save registry and memdata
+
     size_t bytes_read_write;
-
-    // save the rip bytes
-    bool success = (VMI_SUCCESS == vmi_read(vmi, &ctx, sizeof(shellcode), injector->memdata.data, &bytes_read_write));
-    PRINT_DEBUG("BYTES: %ld\n", bytes_read_write);
-
-    // save the registries
-    memcpy(&injector->saved_regs, info->regs, sizeof(x86_registers_t));
-
-    //release vmi
-    drakvuf_release_vmi(drakvuf);
-
-    if (!success) {
-        fprintf(stderr, "Could not read the data to be restored later");
-    }
-
-    print_stack(drakvuf, info);
-    print_registers(info);
-
     registers_t regs;
+
+    // lock vmi
+    vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
     vmi_get_vcpuregs(vmi, &regs, info->vcpu);
 
-    // doesn't give 20 with just `syscall` shellcode
-    setup_exit_syscall(injector, &regs.x86, 20);
+    info->regs->rax = 60;
+    regs.x86.rdi = 38;
+    regs.x86.rax = 60;
+    info->regs->rdi = 39; // set different value for differentiating
 
-    vmi = drakvuf_lock_and_get_vmi(drakvuf);
-    success = (VMI_SUCCESS == vmi_write(vmi, &ctx, sizeof(shellcode), (void *)shellcode, &bytes_read_write));
-    PRINT_DEBUG("BYTES: %ld\n", bytes_read_write);
-
-    if (!success) {
+    bool success = (VMI_SUCCESS == vmi_write(vmi, &ctx, sizeof(shellcode), (void *)shellcode, &bytes_read_write));
+    if (!success)
         fprintf(stderr, "Could not write the data");
-    }
+    else
+        PRINT_DEBUG("BYTES: %ld\n", bytes_read_write);
 
     // release vmi
     drakvuf_release_vmi(drakvuf);
-
-    regs.x86.rax = injector->syscall;
-
-    // doesn't give 4 with just `syscall` shellcode
-    regs.x86.rdi = 4;
-
-    regs.x86.rip = info->regs->rip;
 
     drakvuf_set_vcpu_gprs(drakvuf, info->vcpu, &regs);
 
