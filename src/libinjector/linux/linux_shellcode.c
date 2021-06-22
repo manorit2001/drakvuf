@@ -20,6 +20,8 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
     // works like charm with proper exit code
     const char *shellcode = "\x6a\x3c\x58\x6a\x01\x5f\x0f\x05";
     
+    // Trying to write only the `syscall` instruction on the memory, and set registers using regs.x86 or setup_stack
+    
     // works but doesn't give proper exit code set manually by regs.x86.rdi or setup_stack ( inside setup_exit_syscall )
     // const char *shellcode = "\x0f\x05\x90\x90";
 
@@ -31,10 +33,10 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
 
     vmi_instance_t vmi = drakvuf_lock_and_get_vmi(drakvuf);
 
-    // allocate memory
+    // allocate memory for saving overwritten rip bytes
     injector->memdata.data = g_try_malloc0(sizeof(shellcode));
 
-    // access rsp location
+    // access rip location
     ACCESS_CONTEXT(ctx,
                    .translate_mechanism = VMI_TM_PROCESS_DTB,
                    .dtb = info->regs->cr3,
@@ -42,7 +44,8 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
                   );
 
     size_t bytes_read_write;
-    // save the rsp bytes
+
+    // save the rip bytes
     bool success = (VMI_SUCCESS == vmi_read(vmi, &ctx, sizeof(shellcode), injector->memdata.data, &bytes_read_write));
     PRINT_DEBUG("BYTES: %ld\n", bytes_read_write);
 
@@ -62,6 +65,7 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
     registers_t regs;
     vmi_get_vcpuregs(vmi, &regs, info->vcpu);
 
+    // doesn't give 20 with just `syscall` shellcode
     setup_exit_syscall(injector, &regs.x86, 20);
 
     vmi = drakvuf_lock_and_get_vmi(drakvuf);
@@ -77,7 +81,7 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
 
     regs.x86.rax = injector->syscall;
 
-    // doesn't work 
+    // doesn't give 4 with just `syscall` shellcode
     regs.x86.rdi = 4;
 
     regs.x86.rip = info->regs->rip;
