@@ -21,10 +21,10 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
     // Trying to write only the `syscall` instruction on the memory, and set registers using regs.x86 or setup_stack
 
     // works but doesn't give proper exit code set manually by regs.x86.rdi or setup_stack ( inside setup_exit_syscall )
-    // const char shellcode[] = {0xf, 0x5};
+    const char shellcode[] = {0xf, 0x5};
 
     // konstanty sir suggested
-    const char shellcode[] = { 0x48, 0xC7, 0xC0, 0x3C, 0x00, 0x00, 0x00, 0x0F, 0x05  };
+    // const char shellcode[] = { 0x48, 0xC7, 0xC0, 0x3C, 0x00, 0x00, 0x00, 0x0F, 0x05  };
 
     // access rip location
     ACCESS_CONTEXT(ctx,
@@ -43,8 +43,8 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
     vmi_get_vcpuregs(vmi, &regs, info->vcpu);
 
     info->regs->rax = 60;
-    regs.x86.rdi = 38;
-    regs.x86.rax = 60;
+    //regs.x86.rdi = 38;
+    //regs.x86.rax = 60;
     info->regs->rdi = 39; // set different value for differentiating
 
     bool success = (VMI_SUCCESS == vmi_write(vmi, &ctx, sizeof(shellcode), (void *)shellcode, &bytes_read_write));
@@ -56,7 +56,7 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
     // release vmi
     drakvuf_release_vmi(drakvuf);
 
-    drakvuf_set_vcpu_gprs(drakvuf, info->vcpu, &regs);
+    //drakvuf_set_vcpu_gprs(drakvuf, info->vcpu, &regs);
 
     return VMI_EVENT_RESPONSE_SET_REGISTERS;
 }
