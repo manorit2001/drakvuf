@@ -102,8 +102,8 @@
 #                                                                         #
 #*************************************************************************#
 
-h_sources = libinjector.h private.h win_private.h linux/linux_injector.h
-c_sources = injector.c win_injector.c linux/linux_injector.c injector_stack.c
+h_sources = libinjector.h private.h win_private.h linux/linux_utils.h linux/linux_debug.h
+c_sources = injector.c win_injector.c linux/linux_injector.c linux/linux_utils.c linux/linux_debug.c injector_stack.c
 
 AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/src -I$(srcdir)
 AM_CPPFLAGS += $(VMI_CFLAGS)

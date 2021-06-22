@@ -21,6 +21,5 @@ void free_injector(injector_t injector)
 
     free_memtraps(injector);
 
-    g_free((void*)injector->payload);
     g_free((void*)injector);
 }
