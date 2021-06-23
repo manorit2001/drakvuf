@@ -25,10 +25,6 @@ typedef enum
     INJECT_RESULT_ERROR_CODE,
 } inject_result_t;
 
-typedef enum {
-    sys_exit = 60,
-} syscall_t;
-
 struct injector
 {
     // Inputs:
@@ -42,7 +38,6 @@ struct injector
     // Internal:
     drakvuf_t drakvuf;
     injection_method_t method;
-    syscall_t syscall;
 
     drakvuf_trap_t bp;
 

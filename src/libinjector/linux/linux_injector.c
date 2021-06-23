@@ -78,7 +78,7 @@ static event_response_t wait_for_target_process_cr3_cb(drakvuf_t drakvuf, drakvu
 
     // setup int3 trap
     injector->bp.type = BREAKPOINT;
-    injector->bp.name = "injector_int3_userspace_db";
+    injector->bp.name = "injector_int3_userspace_cb";
     injector->bp.cb = injector_int3_userspace_cb;
     injector->bp.data = injector;
     injector->bp.breakpoint.lookup_type = LOOKUP_DTB;
