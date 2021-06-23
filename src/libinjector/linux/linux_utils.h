@@ -14,9 +14,8 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <assert.h>
-
-#include "libdrakvuf/libdrakvuf.h"
-#include "libinjector/private.h"
+#include <libdrakvuf/libdrakvuf.h>
+#include <libinjector/private.h>
 
 typedef enum
 {
@@ -46,6 +45,9 @@ struct injector
     syscall_t syscall;
 
     drakvuf_trap_t bp;
+
+    // Traps
+    drakvuf_trap_t *cr3_trap;
 
     // Results:
     injector_status_t rc;

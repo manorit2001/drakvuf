@@ -93,6 +93,7 @@ static event_response_t wait_for_target_process_cr3_cb(drakvuf_t drakvuf, drakvu
 
         // Unsubscribe from the CR3 trap
         drakvuf_remove_trap(drakvuf, info->trap, NULL);
+        injector->cr3_trap = NULL;
     }
     else {
         fprintf(stderr, "Failed to trap trapframe return address\n");
@@ -119,7 +120,8 @@ static bool inject(drakvuf_t drakvuf, injector_t injector) {
         .data = injector,
     };
 
-    // remove the trap inside callbacks
+    injector->cr3_trap = &trap;
+
     if (!drakvuf_add_trap(drakvuf, &trap)) {
         PRINT_DEBUG("Failed to set trap wait_for_target_process_cr3_cb callback");
         return false;
