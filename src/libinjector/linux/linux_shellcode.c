@@ -14,7 +14,7 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
 
     // TODO: save registry and memdata
 
-    size_t bytes_read_write;
+    size_t bytes_write = 0;
     registers_t regs;
 
     // lock vmi
@@ -24,9 +24,11 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
     info->regs->rax = 60;
     info->regs->rdi = 39;
 
-    bool success = (VMI_SUCCESS == vmi_write(vmi, &ctx, sizeof(shellcode), (void *)shellcode, &bytes_read_write));
-    if (!success)
-        fprintf(stderr, "Could not write the data");
+    if (VMI_SUCCESS != vmi_write(vmi, &ctx, sizeof(shellcode), (void *)shellcode, &bytes_write))
+        fprintf(stderr, "Could not write the shellcode on guest");
+
+    if (bytes_write != sizeof(shellcode))
+        PRINT_DEBUG("vmi_write failed to inject shellcode. Written: %lx/%lx bytes: \n", bytes_write, sizeof(shellcode));
 
     // release vmi
     drakvuf_release_vmi(drakvuf);
