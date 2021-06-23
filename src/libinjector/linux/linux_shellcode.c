@@ -27,8 +27,6 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
     bool success = (VMI_SUCCESS == vmi_write(vmi, &ctx, sizeof(shellcode), (void *)shellcode, &bytes_read_write));
     if (!success)
         fprintf(stderr, "Could not write the data");
-    else
-        PRINT_DEBUG("BYTES: %ld\n", bytes_read_write);
 
     // release vmi
     drakvuf_release_vmi(drakvuf);
