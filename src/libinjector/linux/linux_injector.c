@@ -28,7 +28,7 @@ bool check_userspace_int3_trap(injector_t injector, drakvuf_trap_info_t* info) {
     if (info->regs->rip != info->trap->breakpoint.addr) {
         PRINT_DEBUG("INT3 received but BP_ADDR (%lx) doesn't match RIP (%lx)",
                     info->trap->breakpoint.addr, info->regs->rip);
-        return false;
+        assert(false);
     }
 
     if (injector->target_tid && (uint32_t)info->proc_data.tid != injector->target_tid)
@@ -38,12 +38,6 @@ bool check_userspace_int3_trap(injector_t injector, drakvuf_trap_info_t* info) {
         return false;
     }
 
-    else if (!injector->target_tid)
-    {
-        PRINT_DEBUG("Target TID not provided by the user, pinning TID to %u\n",
-                    info->proc_data.tid);
-        injector->target_tid = info->proc_data.tid;
-    }
     return true;
 
 }
@@ -84,7 +78,7 @@ static event_response_t wait_for_target_process_cr3_cb(drakvuf_t drakvuf, drakvu
 
     // setup int3 trap
     injector->bp.type = BREAKPOINT;
-    injector->bp.name = "entry";
+    injector->bp.name = "injector_int3_userspace_db";
     injector->bp.cb = injector_int3_userspace_cb;
     injector->bp.data = injector;
     injector->bp.breakpoint.lookup_type = LOOKUP_DTB;
@@ -102,6 +96,7 @@ static event_response_t wait_for_target_process_cr3_cb(drakvuf_t drakvuf, drakvu
     }
     else {
         fprintf(stderr, "Failed to trap trapframe return address\n");
+        PRINT_DEBUG("Will keep trying in next callback\n");
         print_registers(info);
         print_stack(drakvuf, info);
     }
@@ -124,8 +119,11 @@ static bool inject(drakvuf_t drakvuf, injector_t injector) {
         .data = injector,
     };
 
-    if (!drakvuf_add_trap(drakvuf, &trap))
+    // remove the trap inside callbacks
+    if (!drakvuf_add_trap(drakvuf, &trap)) {
+        PRINT_DEBUG("Failed to set trap wait_for_target_process_cr3_cb callback");
         return false;
+    }
 
     if (!drakvuf_is_interrupted(drakvuf)) {
         PRINT_DEBUG("Starting drakvuf loop\n");
@@ -135,9 +133,6 @@ static bool inject(drakvuf_t drakvuf, injector_t injector) {
 
     if (SIGDRAKVUFTIMEOUT == drakvuf_is_interrupted(drakvuf))
         injector->rc = INJECTOR_TIMEOUTED;
-
-    // should be handled inside the callbacks
-    // drakvuf_remove_trap(drakvuf, &trap, NULL);
 
     return true;
 }
@@ -156,6 +151,8 @@ injector_status_t injector_start_app_on_linux(
     injector->drakvuf = drakvuf;
     injector->target_pid = pid;
     injector->target_tid = tid;
+    if(!injector->target_tid)
+        injector->target_tid = pid;
     injector->shellcode_file = file;
     injector->args_count = args_count;
     for ( int i = 0; i<args_count; i++ )

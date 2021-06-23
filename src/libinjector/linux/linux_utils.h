@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <assert.h>
 
 #include "libdrakvuf/libdrakvuf.h"
 #include "libinjector/private.h"
@@ -22,7 +23,6 @@ typedef enum
     INJECT_RESULT_SUCCESS,
     INJECT_RESULT_TIMEOUT,
     INJECT_RESULT_CRASH,
-    INJECT_RESULT_PREMATURE,
     INJECT_RESULT_ERROR_CODE,
 } inject_result_t;
 
@@ -59,6 +59,5 @@ struct injector
 };
 
 void free_injector(injector_t injector);
-bool setup_exit_syscall(injector_t injector, x86_registers_t* regs, uint32_t no);
 
 #endif
