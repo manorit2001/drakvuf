@@ -38,19 +38,6 @@ typedef enum {
     STEP9,
 } injector_step_t;
 
-typedef enum {
-    sys_read = 0,
-    sys_write = 1,
-    sys_open = 2,
-    sys_close = 3,
-    sys_stat = 4,
-    sys_mmap = 9,
-    sys_mprotect = 10,
-    sys_munmap = 11,
-    sys_exit = 60,
-    sys_kill = 62,
-} syscall_t;
-
 struct injector
 {
     // Inputs:
@@ -64,7 +51,6 @@ struct injector
     // Internal:
     drakvuf_t drakvuf;
     injection_method_t method;
-    syscall_t syscall;
     injector_step_t step;
 
     // shellcode
@@ -72,12 +58,6 @@ struct injector
         void *data;
         int len;
     } shellcode;
-
-    // read_file, write_file
-    addr_t file_descriptor;
-
-    // mmap
-    addr_t virtual_memory_addr;
 
     // for restoring stack
     x86_registers_t saved_regs;

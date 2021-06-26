@@ -177,6 +177,5 @@ void free_injector(injector_t injector)
     if (injector)
         g_free((void*)injector);
 
-
     injector = NULL;
 }
