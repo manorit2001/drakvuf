@@ -13,16 +13,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <assert.h>
 #include <libdrakvuf/libdrakvuf.h>
 #include <libinjector/private.h>
-#include <assert.h>
 
 typedef enum
 {
     INJECT_RESULT_SUCCESS,
     INJECT_RESULT_TIMEOUT,
     INJECT_RESULT_CRASH,
-    INJECT_RESULT_PREMATURE,
     INJECT_RESULT_ERROR_CODE,
     INJECT_RESULT_METHOD_UNSUPPORTED,
 } inject_result_t;
@@ -59,7 +58,7 @@ struct injector
     uint32_t target_tid;
     const char* target_file;
     int args_count;
-    const char* args[10];
+    const char** args;
     output_format_t format;
 
     // Internal:
@@ -105,7 +104,6 @@ struct injector
     } error_code;
 };
 
-void free_memtraps(injector_t injector);
 void free_injector(injector_t injector);
 bool save_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info, uint32_t size);
 bool restore_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info);

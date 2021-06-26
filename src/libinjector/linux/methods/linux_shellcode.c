@@ -6,27 +6,7 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
 
     injector_t injector = (injector_t)info->trap->data;
 
-    // Disassembly of section .text:
-    //
-    // 0000000000000000 <_start>:
-    //    6:   0f 05                   syscall
-    //    b:   c3                      ret
-
-    // shellcode to set registers in it with exit code 1
-    // const char shellcode[] = {0x6a, 0x3c, 0x58, 0x6a, 0x1, 0x5f, 0xf, 0x5};
-    //
-    // shellcode with just syscall and ret, and registers set using `info->regs`
-    // const char shellcode[] = {0xf, 0x5, 0xc3};
-    //
-    // shellcode used for testing save and restore since exit syscall will
-    // terminate the program not allowing the stack to be restored
-    // const char shellcode[] = {0x90, 0x90, 0x90, 0xc3};
-    //
-    // given by kscieslinski
-    // const char shellcode[] = { 0x48, 0xC7, 0xC0, 0x3C, 0x00, 0x00, 0x00, 0x0F, 0x05   };
-
-
-    event_response_t event = VMI_EVENT_RESPONSE_NONE;
+    event_response_t event;
 
     switch(injector->step)
     {
@@ -53,7 +33,7 @@ event_response_t handle_shellcode(drakvuf_t drakvuf, drakvuf_trap_info_t* info) 
             fprintf(stderr, "Could not write the shellcode");
         else {
             PRINT_DEBUG("Shellcode write success\n");
-            print_shellcode(injector->shellcode.data, bytes_write);
+            print_hex(injector->shellcode.data, injector->shellcode.len, bytes_write);
         }
 
         // release vmi

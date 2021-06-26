@@ -1,5 +1,7 @@
 #include "linux_utils.h"
 #include "linux_debug.h"
+#include <sys/mman.h>
+#include <fcntl.h>
 
 bool save_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info, uint32_t size) {
 
@@ -26,10 +28,10 @@ bool save_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info, uint32_t size) 
     // read the bytes
     bool success = (VMI_SUCCESS == vmi_read(vmi, &ctx, size, (void *)injector->memdata.data, &bytes_read));
     if (!success)
-        fprintf(stderr, "Could not read the data");
+        fprintf(stderr, "Could not read the data from memory");
     else {
-        PRINT_DEBUG("Read data success\n");
-        print_shellcode(injector->memdata.data, bytes_read);
+        PRINT_DEBUG("Read data from memory success\n");
+        print_hex(injector->memdata.data, size, bytes_read);
     }
 
     injector->memdata.loc = info->regs->rip;
@@ -65,9 +67,10 @@ bool restore_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
 
     bool success = (VMI_SUCCESS == vmi_write(vmi, &ctx, injector->memdata.len, (void *)injector->memdata.data, &bytes_write));
     if (!success)
-        fprintf(stderr, "Could not restore the data");
+        fprintf(stderr, "Could not restore the data in memory");
     else {
-        PRINT_DEBUG("Bytes restored: %ld", bytes_write);
+        PRINT_DEBUG("Memory data is restored\n");
+        print_hex(injector->memdata.data, injector->memdata.len, bytes_write);
     }
 
     injector->memdata.loc = 0;
@@ -81,55 +84,6 @@ bool restore_vm_state(drakvuf_t drakvuf, drakvuf_trap_info_t* info) {
     injector->memdata.data = NULL;
 
     return success;
-}
-
-
-bool check_userspace_int3_trap(injector_t injector, drakvuf_trap_info_t* info) {
-
-    // check CPL
-    unsigned long int CPL = (info->regs->cs_sel & 3);
-    PRINT_DEBUG("CPL 0x%lx\n", CPL);
-
-    if ( CPL != 0)
-    {
-        PRINT_DEBUG("Reached userspace, yayy!\n");
-    }
-    else
-    {
-        PRINT_DEBUG("INT3 received but CPL is not 0x3\n");
-        print_stack(injector->drakvuf, info);
-        print_registers(info);
-        return false;
-    }
-
-    if ( info->proc_data.pid != injector->target_pid )
-    {
-        PRINT_DEBUG("INT3 received but '%s' PID (%u) doesn't match target process (%u)\n",
-                    info->proc_data.name, info->proc_data.pid, injector->target_pid);
-        return false;
-    }
-
-    if (info->regs->rip != info->trap->breakpoint.addr) {
-        PRINT_DEBUG("INT3 received but BP_ADDR (%lx) doesn't match RIP (%lx)",
-                    info->trap->breakpoint.addr, info->regs->rip);
-        return false;
-    }
-
-    if (injector->target_tid && (uint32_t)info->proc_data.tid != injector->target_tid)
-    {
-        PRINT_DEBUG("INT3 received but '%s' TID (%u) doesn't match target process (%u)\n",
-                    info->proc_data.name, info->proc_data.tid, injector->target_tid);
-        return false;
-    }
-
-    else if (!injector->target_tid)
-    {
-        PRINT_DEBUG("Target TID not provided by the user, pinning TID to %u\n",
-                    info->proc_data.tid);
-        injector->target_tid = info->proc_data.tid;
-    }
-    return true;
-
 }
 
 bool save_rip_for_ret(drakvuf_t drakvuf, x86_registers_t* regs) {
@@ -195,8 +149,8 @@ bool load_file_to_injector_shellcode(injector_t injector, const char* file)
     *(char *)(injector->shellcode.data + injector->shellcode.len ) = 0xc3; //ret
     injector->shellcode.len += 1; // increase the length in variable
 
-    PRINT_DEBUG("Shellcode loaded to memory\n");
-    print_shellcode(injector->shellcode.data, injector->shellcode.len);
+    PRINT_DEBUG("Shellcode loaded to injector->shellcode\n");
+    print_hex(injector->shellcode.data, injector->shellcode.len, -1);
 
     fclose(fp);
 

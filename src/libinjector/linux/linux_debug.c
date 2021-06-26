@@ -1,11 +1,14 @@
 #include "linux_debug.h"
 
-void print_shellcode(char* shellcode, int len) {
+void print_hex(char* array, int len, int bytes_write_read) {
 
-    PRINT_DEBUG("Total Bytes: %d\n", len);
+    if (bytes_write_read != -1)
+        PRINT_DEBUG("Bytes processed: %d/%d\n", bytes_write_read, len);
+    else
+        PRINT_DEBUG("Total length of shellcode: %d\n", len);
     PRINT_DEBUG("Data: \n");
     for(int i=0; i<len; i++) {
-        PRINT_DEBUG("%x ", *(shellcode + i) & 0xff);
+        PRINT_DEBUG("%02x ", *(array + i) & 0xff);
     }
     PRINT_DEBUG("\n");
 }
