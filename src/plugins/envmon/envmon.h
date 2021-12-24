@@ -105,7 +105,7 @@
 #ifndef ENVMON_H
 #define ENVMON_H
 
-#include "plugins/plugins_ex.h"
+#include "plugins/plugins_ex.hpp"
 
 struct envmon_config
 {

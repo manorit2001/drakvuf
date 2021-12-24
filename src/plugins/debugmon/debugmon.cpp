@@ -118,10 +118,10 @@
 #include <err.h>
 
 #include <libvmi/libvmi.h>
-#include "../plugins.h"
+#include "../plugins.hpp"
 #include "private.h"
 #include "debugmon.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 # define HVMOP_TRAP_ext_int    0
 # define HVMOP_TRAP_nmi        2

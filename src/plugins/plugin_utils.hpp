@@ -109,7 +109,7 @@
 #include <memory>
 #include <string>
 
-#include "plugins.h"
+#include "plugins.hpp"
 
 using flags_str_t = std::map<uint64_t, std::string>;
 

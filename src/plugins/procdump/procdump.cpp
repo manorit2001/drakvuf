@@ -115,7 +115,7 @@
 #include "procdump.h"
 #include "private.h"
 #include "minidump.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 using namespace std::string_literals;
 

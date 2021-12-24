@@ -113,7 +113,7 @@
 
 #include <glib.h>
 #include "plugins/private.h"
-#include "plugins/plugins_ex.h"
+#include "plugins/plugins_ex.hpp"
 #include "printers/printers.hpp"
 
 typedef event_response_t (*callback_t)(drakvuf_t drakvuf, drakvuf_trap_info* info);

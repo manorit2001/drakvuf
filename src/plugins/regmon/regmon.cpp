@@ -108,9 +108,9 @@
 #include <libvmi/x86.h>
 #include <assert.h>
 
-#include "../plugins.h"
+#include "../plugins.hpp"
 #include "regmon.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 #include <vector>
 #include <string>

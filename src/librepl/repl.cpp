@@ -109,7 +109,7 @@
 #include <sstream>
 #include <string>
 
-#include <librepl/librepl.h>
+#include <librepl/librepl.hpp>
 #include <Python.h>
 
 #ifndef PRINT_DEBUG

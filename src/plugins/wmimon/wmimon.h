@@ -105,9 +105,9 @@
 #ifndef WMIMON_H
 #define WMIMON_H
 
-#include "plugins.h"
+#include "plugins.hpp"
 #include "plugins/private.h"
-#include "plugins/plugins_ex.h"
+#include "plugins/plugins_ex.hpp"
 
 struct wmimon_config
 {

@@ -111,7 +111,7 @@
 #include <variant>
 #include <vector>
 
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 #include "syscalls.h"
 #include "private.h"
 #include "win.h"

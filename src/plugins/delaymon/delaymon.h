@@ -1,6 +1,6 @@
 #pragma once
 
-#include "plugins/plugins.h"
+#include "plugins/plugins.hpp"
 #include "plugins/private.h"
 
 class delaymon: public plugin

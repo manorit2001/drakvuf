@@ -102,7 +102,7 @@
 *                                                                         *
 ***************************************************************************/
 
-#include "../plugins.h"
+#include "../plugins.hpp"
 #include "filedelete.h"
 #include "private.h"
 

@@ -106,7 +106,7 @@
 #define FILETRACER_LINUX_H
 
 #include "plugins/private.h"
-#include "plugins/plugins.h"
+#include "plugins/plugins.hpp"
 
 class linux_filetracer
 {

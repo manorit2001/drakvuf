@@ -103,7 +103,7 @@
  ***************************************************************************/
 #pragma once
 
-#include "plugins/plugins_ex.h"
+#include "plugins/plugins_ex.hpp"
 #include "private.h"
 
 struct rootkitmon_config

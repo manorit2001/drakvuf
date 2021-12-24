@@ -105,7 +105,7 @@
 #include <libvmi/libvmi.h>
 #include <unordered_map>
 #include <set>
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 #include "rootkitmon.h"
 #include "private.h"
 

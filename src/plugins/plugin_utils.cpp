@@ -102,7 +102,7 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "plugin_utils.h"
+#include "plugin_utils.hpp"
 #include <algorithm>
 #include <cctype>
 #include <iostream>

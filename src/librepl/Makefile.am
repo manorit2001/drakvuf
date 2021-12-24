@@ -103,7 +103,7 @@
 #*************************************************************************#
 
 sources =
-sources += librepl.h
+sources += librepl.hpp
 sources += repl.cpp
 
 AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/src -I$(srcdir)

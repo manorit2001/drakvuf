@@ -110,7 +110,7 @@
 #include <vector>
 #include <libdrakvuf/json-util.h>
 
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 #include "private.h"
 #include "tlsmon.h"
 

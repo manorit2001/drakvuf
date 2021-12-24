@@ -106,7 +106,7 @@
 #include <cassert>
 
 #include "windowmon.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 static char const* get_value_name(unicode_string_t* us)
 {

@@ -104,7 +104,7 @@
 
 #include <libvmi/libvmi.h>
 #include "libdrakvuf/libdrakvuf.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 #include <algorithm>
 
 #include "dkommon.h"

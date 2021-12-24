@@ -106,7 +106,7 @@
 #include <cassert>
 
 #include "clipboardmon.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 static event_response_t cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 {

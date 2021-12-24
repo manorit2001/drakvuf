@@ -112,7 +112,7 @@
 #include <assert.h>
 #include <libdrakvuf/json-util.h>
 
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 #include "apimon.h"
 #include "private.h"
 #include "crypto.h"

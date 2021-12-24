@@ -109,7 +109,7 @@
 #include <fstream>
 
 #include "plugins/private.h"
-#include "plugins/plugins_ex.h"
+#include "plugins/plugins_ex.hpp"
 
 #define MAX_DRAKVUF_VCPU 16
 

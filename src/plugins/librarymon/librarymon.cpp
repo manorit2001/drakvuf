@@ -107,7 +107,7 @@
 #include <libdrakvuf/libdrakvuf.h>
 #include <libvmi/libvmi.h>
 #include "librarymon.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 
 static event_response_t load_library_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info)

@@ -113,7 +113,7 @@
 #include <signal.h>
 #include <stdbool.h>
 
-#include "../plugins.h"
+#include "../plugins.hpp"
 
 #define SOCK_STUB "/run/xen/qmp-libxl-"
 

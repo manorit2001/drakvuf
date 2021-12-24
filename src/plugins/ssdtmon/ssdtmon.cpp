@@ -118,11 +118,11 @@
 #include <err.h>
 
 #include <libvmi/libvmi.h>
-#include "../plugins.h"
+#include "../plugins.hpp"
 #include "private.h"
 #include "ssdtmon.h"
-#include "plugins/output_format.h"
-#include "plugins/plugins_ex.h"
+#include "plugins/output_format.hpp"
+#include "plugins/plugins_ex.hpp"
 
 static std::array<uint8_t, 32> ssdtmon_sha256_calc(vmi_instance_t vmi, addr_t addr, size_t size)
 {

@@ -110,10 +110,10 @@
 #include <sstream>
 #include <string>
 
-#include "../plugins.h"
-#include "../plugin_utils.h"
+#include "../plugins.hpp"
+#include "../plugin_utils.hpp"
 #include "filedelete.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 #include "private.h"
 
 #include <libinjector/libinjector.h>

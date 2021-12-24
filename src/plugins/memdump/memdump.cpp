@@ -111,7 +111,7 @@
 #include <libdrakvuf/json-util.h>
 
 #include "memdump.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 #include "private.h"
 
 #define DUMP_NAME_PLACEHOLDER "(not configured)"

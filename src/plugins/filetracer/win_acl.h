@@ -107,7 +107,7 @@
 
 #include <memory>
 #include <string>
-#include <plugins/plugins.h>
+#include <plugins/plugins.hpp>
 
 /* Represents SID as string
  *

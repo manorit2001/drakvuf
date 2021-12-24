@@ -115,7 +115,7 @@
 #include <iomanip>
 
 #include "crypto.h"
-#include "plugins/plugins.h"
+#include "plugins/plugins.hpp"
 
 static std::string make_hex_string(uint8_t const* data, size_t len)
 {

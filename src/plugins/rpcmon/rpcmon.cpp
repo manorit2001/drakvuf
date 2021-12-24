@@ -111,7 +111,7 @@
 #include <optional>
 #include <memory>
 
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 #include "rpcmon.h"
 #include "private.h"
 

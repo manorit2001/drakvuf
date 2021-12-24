@@ -105,7 +105,7 @@
 #include <stdio.h>
 #include <utility>
 
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 #include "privileges.h"
 
 std::pair<std::string, fmt::Aarg> stringify_privilege(struct LUID_AND_ATTRIBUTES& privilege)

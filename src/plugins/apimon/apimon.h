@@ -111,7 +111,7 @@
 #include <glib.h>
 #include <libusermode/userhook.hpp>
 #include "plugins/private.h"
-#include "plugins/plugins_ex.h"
+#include "plugins/plugins_ex.hpp"
 
 struct apimon_config
 {

@@ -119,10 +119,10 @@
 #include <ctype.h>
 
 #include <libvmi/libvmi.h>
-#include "../plugins.h"
+#include "../plugins.hpp"
 #include "private.h"
 #include "poolmon.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 static GTree* pooltag_build_tree()
 {

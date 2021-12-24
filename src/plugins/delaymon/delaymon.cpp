@@ -1,5 +1,5 @@
 #include "delaymon.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 #include <cmath>
 

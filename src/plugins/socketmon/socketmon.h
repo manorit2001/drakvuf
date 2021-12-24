@@ -106,7 +106,7 @@
 #define SOCKETMON_H
 
 #include "plugins/private.h"
-#include "plugins/plugins.h"
+#include "plugins/plugins.hpp"
 #include "private.h"
 
 struct socketmon_config

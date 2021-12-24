@@ -103,7 +103,7 @@
  ***************************************************************************/
 #include "writer2.h"
 
-#include "drakvuf.h"
+#include "drakvuf.hpp"
 
 #include <zlib.h>
 

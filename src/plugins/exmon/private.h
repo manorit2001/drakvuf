@@ -105,7 +105,7 @@
 #ifndef EXMON_PRIVATE_H
 #define EXMON_PRIVATE_H
 
-#include "plugins/plugins.h"
+#include "plugins/plugins.hpp"
 
 #define KV_FORMAT32 "exmon Time=" FORMAT_TIMEVAL ",RSP=%x,ExceptionRecord=0x%x,ExceptionCode=0x%x,FirstChance=%d,EIP=%x,EAX=%x,EBX=%x,ECX=%x,EDX=%x,EDI=%x,ESI=%x,EBP=%x,ESP=%x"
 #define KV_FORMAT64 "exmon Time=" FORMAT_TIMEVAL ",ExceptionRecord=0x%x,ExceptionCode=0x%x,FirstChance=%d,RIP=%x,RAX=%x,RBX=%x,RCX=%x,RDX=%x,RSP=%x,RBP=%x,RSI=%x,RDI=%x,R8=%x,R9=%x,R10=%x,R11=%x"

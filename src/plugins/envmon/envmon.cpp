@@ -108,7 +108,7 @@
 #include <map>
 
 #include "plugins/private.h"
-#include <plugins/output_format.h>
+#include <plugins/output_format.hpp>
 
 #include "envmon.h"
 #include "private.h"

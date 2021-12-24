@@ -102,9 +102,11 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "drakvuf.h"
+#include "drakvuf.hpp"
 #include <stdexcept>
 #include <errno.h>
+#include <memory>
+#include <unordered_map>
 
 static bool startup_timer(drakvuf_c* drakvuf, int timeout)
 {
@@ -280,7 +282,7 @@ void drakvuf_c::toggle_context_interception(GSList* processes)
 
     while (process != NULL)
     {
-        char* process_arg = (char*)process->data;
+        char* process_arg = reinterpret_cast<char*>(process->data);
         char** tokens = NULL;
         char* name = NULL;
         vmi_pid_t pid = 0;

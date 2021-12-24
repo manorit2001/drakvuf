@@ -106,7 +106,7 @@
 #include <libvmi/libvmi.h>
 
 #include "exmon.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 enum offset
 {

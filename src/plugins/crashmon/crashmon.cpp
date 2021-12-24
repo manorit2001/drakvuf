@@ -105,7 +105,7 @@
 #include <libvmi/libvmi.h>
 
 #include "crashmon.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 static void print_crashed_process_information(drakvuf_t drakvuf, drakvuf_trap_info_t* info, vmi_pid_t pid, vmi_pid_t ppid, const char* name)
 {

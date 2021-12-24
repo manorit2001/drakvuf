@@ -107,7 +107,7 @@
 #include "bsodmon.h"
 #include "private.h"
 #include "bugcheck.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 static event_response_t hook_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 {

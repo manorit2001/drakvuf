@@ -110,8 +110,8 @@
 
 #include <libdrakvuf/ntstatus.h>
 
-#include "../plugins.h"
-#include "plugins/output_format.h"
+#include "../plugins.hpp"
+#include "plugins/output_format.hpp"
 #include "procmon.h"
 #include "winnt.h"
 #include "privileges.h"

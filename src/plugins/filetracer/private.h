@@ -106,7 +106,7 @@
 #define FILETRACER_PRIVATE_H
 
 #include <string>
-#include "plugins/plugin_utils.h"
+#include "plugins/plugin_utils.hpp"
 #include "win.h"
 #include "linux.h"
 

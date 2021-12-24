@@ -106,8 +106,8 @@
 #define FILEDELETE_H
 
 #include "plugins/private.h"
-#include "plugins/plugins.h"
-#include "plugins/plugins_ex.h"
+#include "plugins/plugins.hpp"
+#include "plugins/plugins_ex.hpp"
 
 #include <map>
 #include <utility>

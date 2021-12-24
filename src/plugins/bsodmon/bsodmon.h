@@ -106,7 +106,7 @@
 #define BSODMON_H
 
 #include "plugins/private.h"
-#include "plugins/plugins.h"
+#include "plugins/plugins.hpp"
 
 #include <map>
 

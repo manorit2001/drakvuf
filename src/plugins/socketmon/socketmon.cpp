@@ -134,10 +134,10 @@
 #include <cassert>
 
 #include <libvmi/libvmi.h>
-#include "plugins/plugins.h"
+#include "plugins/plugins.hpp"
 #include "private.h"
 #include "socketmon.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 #define IPV4_ADDR_OFFSET 4
 #define IPV6_ADDR_OFFSET 8

@@ -104,7 +104,7 @@
 #pragma once
 
 #include <vector>
-#include "plugins/plugins_ex.h"
+#include "plugins/plugins_ex.hpp"
 
 event_response_t cr3_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info);
 

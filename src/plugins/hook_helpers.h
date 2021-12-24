@@ -104,7 +104,7 @@
 #pragma once
 
 #include <libhook/libhook.hpp>
-#include "plugins.h"
+#include "plugins.hpp"
 
 /*
  * These 2 templates convert member-function-pointer to class type.

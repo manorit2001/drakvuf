@@ -121,8 +121,8 @@
 #include <sstream>
 
 #include <libvmi/libvmi.h>
-#include "plugins/plugins.h"
-#include "plugins/output_format.h"
+#include "plugins/plugins.hpp"
+#include "plugins/output_format.hpp"
 #include "private.h"
 #include "win.h"
 #include "win_acl.h"

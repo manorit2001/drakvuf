@@ -102,6 +102,7 @@
  *                                                                         *
  ***************************************************************************/
 #include <libhook/hooks/base.hpp>
+#include <utility>
 
 namespace libhook
 {

@@ -104,7 +104,7 @@
 
 #include "wmimon.h"
 #include "private.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 bool FAILED(unsigned long rax)
 {

@@ -118,10 +118,10 @@
 #include <err.h>
 
 #include <libvmi/libvmi.h>
-#include "../plugins.h"
+#include "../plugins.hpp"
 #include "private.h"
 #include "cpuidmon.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 event_response_t cpuid_cb(drakvuf_t drakvuf, drakvuf_trap_info_t* info)
 {

@@ -110,7 +110,7 @@
 #include <unistd.h>
 
 #include <libvmi/libvmi.h>
-#include <librepl/librepl.h>
+#include <librepl/librepl.hpp>
 #include <libdrakvuf/libdrakvuf.h>
 
 static drakvuf_t drakvuf;

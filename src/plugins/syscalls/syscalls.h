@@ -106,9 +106,9 @@
 #define SYSCALLS_H
 
 #include <glib.h>
-#include "plugins/plugins_ex.h"
+#include "plugins/plugins_ex.hpp"
 #include "plugins/private.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 struct syscalls_config
 {

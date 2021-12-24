@@ -119,7 +119,7 @@
 
 #include <libvmi/libvmi.h>
 #include "objmon.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 /*
 NTSYSAPI NTSTATUS ZwDuplicateObject(

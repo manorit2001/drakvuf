@@ -111,7 +111,7 @@
 
 #include "ipt.h"
 #include "filesystem.hpp"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 #include "private.h"
 
 namespace

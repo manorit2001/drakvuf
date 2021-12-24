@@ -106,7 +106,7 @@
 #define DKOMMON_H
 
 #include "plugins/private.h"
-#include "plugins/plugins_ex.h"
+#include "plugins/plugins_ex.hpp"
 
 #include <string>
 #include <set>

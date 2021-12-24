@@ -106,7 +106,7 @@
 #define CLIPBOARDMON_H
 
 #include "plugins/private.h"
-#include "plugins/plugins.h"
+#include "plugins/plugins.hpp"
 
 struct clipboardmon_config
 {

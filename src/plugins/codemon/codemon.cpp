@@ -138,7 +138,7 @@
 #include "filesystem.hpp"
 #include <libdrakvuf/json-util.h>
 #include "codemon.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 #include "private.h"
 
 /**

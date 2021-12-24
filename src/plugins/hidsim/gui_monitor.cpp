@@ -111,7 +111,7 @@
 #include <json-c/json_object.h>     /* json_object_put,... */
 
 /* Plugin code */
-#include "../plugins.h"
+#include "../plugins.hpp"
 #include "../private.h"             /* PRINT_DEBUG */
 
 /* GUI reconstruction specific code */

@@ -111,7 +111,7 @@
 
 #include <libvmi/libvmi.h>
 
-#include "plugins/plugins_ex.h"
+#include "plugins/plugins_ex.hpp"
 #include "plugins/private.h"
 
 struct procdump_config

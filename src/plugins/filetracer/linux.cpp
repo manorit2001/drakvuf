@@ -124,7 +124,7 @@
 #include <libvmi/libvmi.h>
 #include "linux.h"
 #include "filetracer.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 #include "private.h"
 
 static void free_gstrings(struct linux_wrapper& lw)

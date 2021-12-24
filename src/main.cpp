@@ -117,8 +117,8 @@
 #include <map>
 
 #include "filesystem.hpp"
-#include "drakvuf.h"
-#include "exitcodes.h"
+#include "drakvuf.hpp"
+#include "exitcodes.hpp"
 
 static std::unique_ptr<drakvuf_c> drakvuf;
 

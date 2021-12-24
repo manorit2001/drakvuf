@@ -118,7 +118,7 @@
 #include "procdump2.h"
 #include "private2.h"
 #include "minidump2.h"
-#include "plugins/output_format.h"
+#include "plugins/output_format.hpp"
 
 /*****************************************************************************
  *                             Public interface                              *

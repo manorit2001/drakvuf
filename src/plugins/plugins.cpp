@@ -103,7 +103,7 @@
  ***************************************************************************/
 
 #include <stdarg.h>
-#include "plugins.h"
+#include "plugins.hpp"
 #include "syscalls/syscalls.h"
 #include "poolmon/poolmon.h"
 #include "filetracer/filetracer.h"

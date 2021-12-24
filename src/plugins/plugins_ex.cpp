@@ -103,7 +103,7 @@
 ***************************************************************************/
 
 #include <libdrakvuf/libdrakvuf.h>
-#include "plugins_ex.h"
+#include "plugins_ex.hpp"
 
 namespace print
 {
@@ -118,6 +118,128 @@ std::string FieldToString(const std::map<uint64_t, std::string>& maps, uint64_t 
 }
 
 }// namespace print
+
+drakvuf_trap_t* breakpoint_in_system_process_searcher::operator()(drakvuf_t drakvuf, drakvuf_trap_info_t* info, drakvuf_trap_t* trap) const
+{
+    if (trap)
+    {
+        if (!drakvuf_get_kernel_symbol_rva(drakvuf, m_syscall_name, &trap->breakpoint.rva))
+        {
+            PRINT_DEBUG("Failed to receive addr of function %s\n", m_syscall_name);
+            return nullptr;
+        }
+
+        if (m_virt_addr)
+        {
+            trap->breakpoint.lookup_type = LOOKUP_PID;
+            trap->breakpoint.pid = m_pid;
+            trap->breakpoint.addr_type = ADDR_VA;
+            trap->breakpoint.addr = m_virt_addr;
+        }
+        else
+        {
+            trap->breakpoint.lookup_type = LOOKUP_PID;
+            trap->breakpoint.pid = 4;
+            trap->breakpoint.addr_type = ADDR_RVA;
+            trap->breakpoint.module = "ntoskrnl.exe";
+
+            trap->name = m_syscall_name;
+        }
+
+        if (!drakvuf_add_trap(drakvuf, trap))
+            return nullptr;
+    }
+    return trap;
+}
+
+drakvuf_trap_t* breakpoint_by_pid_searcher::operator()(drakvuf_t drakvuf, drakvuf_trap_info_t* info, drakvuf_trap_t* trap) const
+    {
+        if (trap)
+        {
+            addr_t ret_addr = drakvuf_get_function_return_address(drakvuf, info);
+            if (!ret_addr)
+                return nullptr;
+
+            trap->breakpoint.lookup_type = LOOKUP_PID;
+            trap->breakpoint.pid = info->trap->breakpoint.pid;
+            trap->breakpoint.addr_type = ADDR_VA;
+            trap->breakpoint.addr = ret_addr;
+            trap->breakpoint.module = info->trap->breakpoint.module;
+
+            if (!trap->name)
+                trap->name = info->trap->name;
+
+            if (!drakvuf_add_trap(drakvuf, trap))
+                return nullptr;
+        }
+        return trap;
+    }
+
+
+drakvuf_trap_t* breakpoint_by_dtb_searcher::operator()(drakvuf_t drakvuf, drakvuf_trap_info_t* info, drakvuf_trap_t* trap) const
+    {
+        if (trap)
+        {
+            // NOTE This is rather ugly solution but is backword compatible.
+            // TODO Add "for_ret_addr" method and use it.
+            addr_t addr = m_addr;
+            if (!addr)
+            {
+                addr = drakvuf_get_function_return_address(drakvuf, info);
+                if (!addr)
+                    return nullptr;
+            }
+
+            addr_t dtb = m_dtb;
+            if (!dtb)
+            {
+                if (info && info->regs)
+                    dtb = info->regs->cr3;
+                else
+                    return nullptr;
+            }
+
+            trap->breakpoint.lookup_type = LOOKUP_DTB;
+            trap->breakpoint.dtb = dtb;
+            trap->breakpoint.addr_type = ADDR_VA;
+            trap->breakpoint.addr = addr;
+
+            if (!trap->name && info && info->trap)
+                trap->name = info->trap->name;
+
+            if (!drakvuf_add_trap(drakvuf, trap))
+                return nullptr;
+        }
+        return trap;
+    }
+
+
+drakvuf_trap_t* breakpoint_in_dll_module_searcher::operator()(drakvuf_t drakvuf, drakvuf_trap_info_t* info, drakvuf_trap_t* trap) const
+    {
+        if (trap)
+        {
+            context ctx(trap, m_is_wow);
+            if (!json_get_symbol_rva(drakvuf, m_json, m_syscall_name, &ctx.m_function_rva))
+            {
+                PRINT_DEBUG("Failed to find a function %s::%s. %s\n", m_module_name, m_syscall_name, m_is_wow ? "WoW64 " : "");
+                return nullptr;
+            }
+
+            trap->breakpoint.lookup_type = LOOKUP_PID;
+            trap->breakpoint.addr_type = ADDR_VA;
+            trap->breakpoint.module = m_module_name;
+
+            trap->name = m_syscall_name;
+
+            if (!drakvuf_enumerate_processes_with_module(drakvuf, m_module_name, module_visitor, &ctx))
+            {
+                PRINT_DEBUG("Failed to set a trap for function %s::%s in PID: %u\n", m_module_name, m_syscall_name, trap->breakpoint.pid);
+                return nullptr;
+            }
+        }
+        return trap;
+    }
+
 
 // Errors
 char ERROR_MSG_ADDING_TRAP[] = "Failed to add a trap";
